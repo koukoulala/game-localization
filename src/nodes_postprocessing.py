@@ -125,48 +125,6 @@ def critique_node(state: TranslationState) -> TranslationState:
     update_progress(state, NODE_NAME, 80.0) # Mark end of critique stage
     return state
 
-
-def verify_consistency(state: TranslationState) -> TranslationState:
-    """Checks for consistency across translated chunks (placeholder)."""
-    NODE_NAME = "verify_consistency"
-    update_progress(state, NODE_NAME, 82.0)
-    log_to_state(state, "Running consistency verification (Placeholder)...", "INFO", node=NODE_NAME)
-
-    # Placeholder logic:
-    # - Could compare terminology usage across chunks.
-    # - Could check for consistent formatting or style.
-    # - Could use another LLM call to evaluate overall consistency.
-    # For now, just logs and moves on.
-
-    translated_chunks = state.get("translated_chunks", [])
-    critiques = state.get("critiques", [])
-
-    if not translated_chunks or not critiques or len(translated_chunks) != len(critiques):
-         log_to_state(state, "Inconsistent data for consistency check.", "WARNING", node=NODE_NAME)
-         return state
-
-    # Example: Check if any critiques flagged major consistency issues (if critique format supports this)
-    consistency_issues_found = False
-    for i, critique in enumerate(critiques):
-        if critique and isinstance(critique, dict):
-            # Assuming critique['issues'] is a list of dicts with a 'type' field
-            issues = critique.get("issues", [])
-            if any(issue.get("type") == "consistency" for issue in issues if isinstance(issue, dict)):
-                 log_to_state(state, f"Potential consistency issue flagged by critique in chunk {i+1}.", "WARNING", node=NODE_NAME)
-                 consistency_issues_found = True
-                 # Could add more detail here
-
-    if consistency_issues_found:
-        # TODO: add logic for handling consistency_issues_found
-        pass
-
-    log_to_state(state, "Consistency verification step complete.", "INFO", node=NODE_NAME)
-    update_progress(state, NODE_NAME, 85.0)
-    return state
-
-
-
-
 def final_translation_node(state: TranslationState) -> TranslationState:
     """
     Performs a final refinement pass on translated chunks, potentially using critiques.
