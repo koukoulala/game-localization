@@ -164,7 +164,7 @@ def get_llm_client(config: Dict[str, Any], role: str = "default") -> BaseChatMod
     api_key_source = config.get(f"{role_prefix}api_key_source") or config.get("api_key_source", "env")
     temperature = config.get(f"{role_prefix}temperature") or config.get("temperature", 0.2)
 
-    print(f"[Provider Init] Using provider: {provider}, model: {model_name}")
+    # print(f"[Provider Init] Using provider: {provider}, model: {model_name}")
 
     if provider not in PROVIDER_DEFAULTS:
         raise ValueError(f"Unsupported LLM provider configured: {provider}")
