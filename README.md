@@ -8,6 +8,52 @@ Ever felt daunted by translating a massive book (like 500 pages!)? Turjuman is h
 
 ---
 
+## ✨ How Turjuman Works
+
+Turjuman uses a smart pipeline powered by LangGraph 🦜🔗:
+
+1. **🚀 init_translation**: Start the translation job
+2. **🧐 terminology_unification**: Find and unify key terms
+3. **✂️ chunk_document**: Split the book into chunks
+4. **🌐 initial_translation**: Translate chunks in parallel
+5. **🤔 critique_stage**: Review translations, catch errors
+6. **✨ final_translation**: Refine translations
+7. **📜 assemble_document**: Stitch everything back together
+
+### 📊 Translation Flow
+
+```mermaid
+flowchart TD
+    A([🚀 init_translation<br><sub>Initialize translation state and configs</sub>]) --> B([🧐 terminology_unification<br><sub>Extract key terms, unify glossary, prepare context</sub>])
+    B --> C([✂️ chunk_document<br><sub>Split the book into manageable chunks</sub>])
+
+    %% Chunking produces multiple chunks
+    C --> D1([📦 Chunk 1])
+    C --> D2([📦 Chunk 2])
+    C --> D3([📦 Chunk N])
+
+    %% Parallel translation workers
+    D1 --> E1([🌐 initial_translation<br><sub>Translate chunk 1 in parallel</sub>])
+    D2 --> E2([🌐 initial_translation<br><sub>Translate chunk 2 in parallel</sub>])
+    D3 --> E3([🌐 initial_translation<br><sub>Translate chunk N in parallel</sub>])
+
+    %% Merge all translations
+    E1 --> F([🤔 critique_stage<br><sub>Review translations, check quality and consistency</sub>])
+    E2 --> F
+    E3 --> F
+
+    %% Decision after critique
+    F --> |No critical errors| G([✨ final_translation<br><sub>Refine translations based on feedback</sub>])
+    F --> |Critical error| H([🛑 End<br><sub>Stop translation due to errors</sub>])
+
+    G --> I([📜 assemble_document<br><sub>Merge all refined chunks into final output</sub>])
+    I --> J([🏁 Done<br><sub>Translation complete!</sub>])
+
+    H --> J
+```
+
+---
+
 ## 🛠️ Setup & Installation
 
 1. **Prerequisites**
@@ -52,52 +98,6 @@ uvicorn src.server:app --host 0.0.0.0 --port 8051 --reload
 
 ```bash
 streamlit run translate_over_api_frontend_streamlit.py
-```
-
----
-
-## ✨ How Turjuman Works
-
-Turjuman uses a smart pipeline powered by LangGraph 🦜🔗:
-
-1. **🚀 init_translation**: Start the translation job
-2. **🧐 terminology_unification**: Find and unify key terms
-3. **✂️ chunk_document**: Split the book into chunks
-4. **🌐 initial_translation**: Translate chunks in parallel
-5. **🤔 critique_stage**: Review translations, catch errors
-6. **✨ final_translation**: Refine translations
-7. **📜 assemble_document**: Stitch everything back together
-
-### 📊 Translation Flow
-
-```mermaid
-flowchart TD
-    A([🚀 init_translation<br><sub>Initialize translation state and configs</sub>]) --> B([🧐 terminology_unification<br><sub>Extract key terms, unify glossary, prepare context</sub>])
-    B --> C([✂️ chunk_document<br><sub>Split the book into manageable chunks</sub>])
-
-    %% Chunking produces multiple chunks
-    C --> D1([📦 Chunk 1])
-    C --> D2([📦 Chunk 2])
-    C --> D3([📦 Chunk N])
-
-    %% Parallel translation workers
-    D1 --> E1([🌐 initial_translation<br><sub>Translate chunk 1 in parallel</sub>])
-    D2 --> E2([🌐 initial_translation<br><sub>Translate chunk 2 in parallel</sub>])
-    D3 --> E3([🌐 initial_translation<br><sub>Translate chunk N in parallel</sub>])
-
-    %% Merge all translations
-    E1 --> F([🤔 critique_stage<br><sub>Review translations, check quality and consistency</sub>])
-    E2 --> F
-    E3 --> F
-
-    %% Decision after critique
-    F --> |No critical errors| G([✨ final_translation<br><sub>Refine translations based on feedback</sub>])
-    F --> |Critical error| H([🛑 End<br><sub>Stop translation due to errors</sub>])
-
-    G --> I([📜 assemble_document<br><sub>Merge all refined chunks into final output</sub>])
-    I --> J([🏁 Done<br><sub>Translation complete!</sub>])
-
-    H --> J
 ```
 
 ---
