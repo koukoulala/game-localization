@@ -3,6 +3,7 @@ import json
 import uuid
 import time
 import yaml
+import concurrent.futures
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -25,6 +26,84 @@ except ImportError: # Fallback for potential direct script execution (less ideal
     from .utils import log_to_state, update_progress
     from .exceptions import AuthenticationError, RateLimitError, APIError, handle_errors
     from .node_utils import safe_json_parse
+
+def terminology_extraction_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extracts terminology from a single chunk using LLM. Designed to be run in parallel.
+    """
+    import uuid
+
+    NODE_NAME = "terminology_extraction_worker"
+    index = worker_input.get("index", -1)
+    config = worker_input.get("config", {})
+    chunk_text = worker_input.get("chunk_text", "")
+
+    try:
+        # Load prompts
+        prompts_path = Path(__file__).parent.parent / "prompts.yaml"
+        with open(prompts_path) as f:
+            prompts = yaml.safe_load(f)
+
+        prompt_text = prompts["prompts"]["unified_terminology_extraction"]["system"]
+
+        llm = get_llm_client(config)
+
+        messages = [("system", prompt_text)]
+        prompt_template = ChatPromptTemplate.from_messages(messages)
+        chain = prompt_template | llm | StrOutputParser()
+
+        response = chain.invoke({
+            "source_language": config.get("source_language", "english"),
+            "target_language": config.get("target_language", "arabic"),
+            "content_type": config.get("content_type", "general document"),
+            "chunk_content": chunk_text
+        })
+
+        response_data = safe_json_parse(response, {}, NODE_NAME)
+
+        terms = []
+        seen_terms = set()
+
+        if isinstance(response_data, list):
+            for term_data in response_data:
+                if not isinstance(term_data, dict):
+                    continue
+                source_term = term_data.get("sourceTerm")
+                if not isinstance(source_term, str) or not source_term.strip():
+                    continue
+                if source_term in seen_terms:
+                    continue
+                seen_terms.add(source_term)
+
+                translations = term_data.get("proposedTranslations", {})
+                if not isinstance(translations, dict) or "default" not in translations:
+                    translations = {"default": ""}
+
+                entry = TerminologyEntry(
+                    sourceTerm=source_term,
+                    context=term_data.get("context", ""),
+                    proposedTranslations=translations,
+                    variants=term_data.get("variants", [])
+                )
+
+                # Ensure variants is a list of strings
+                if not isinstance(entry["variants"], list) or not all(isinstance(v, str) for v in entry["variants"]):
+                    entry["variants"] = []
+
+                terms.append(entry)
+
+        return {
+            "index": index,
+            "terms": terms,
+            "node_name": NODE_NAME
+        }
+
+    except Exception as e:
+        return {
+            "index": index,
+            "error": f"{NODE_NAME} error: {type(e).__name__}: {e}",
+            "node_name": NODE_NAME
+        }
 
 
 # --- Preprocessing Node Implementations ---
@@ -185,7 +264,7 @@ def chunk_document(state: TranslationState) -> TranslationState:
 def terminology_unification(state: TranslationState) -> TranslationState:
     NODE_NAME = "terminology_unification"
     update_progress(state, NODE_NAME, 5.0)
-    state["unified_terminology"] = []  # Initialize/reset
+    state["contextualized_glossary"] = []  # Initialize/reset
 
     if not state.get("original_content"):
         log_to_state(state, "Original content is empty, skipping terminology unification.", "WARNING", node=NODE_NAME)
@@ -258,64 +337,76 @@ def terminology_unification(state: TranslationState) -> TranslationState:
         all_terms = []
         seen_terms = set()
 
+        # Prepare worker inputs
+        worker_inputs = []
         for idx, chunk_text in enumerate(chunks):
+            worker_inputs.append({
+                "config": config,
+                "chunk_text": chunk_text,
+                "index": idx
+            })
+
+        # Determine max workers (env > config > default)
+        max_workers_env = os.getenv("MAX_PARALLEL_WORKERS")
+        if max_workers_env is not None:
             try:
-                messages = [("system", prompt_text)]
-                prompt_template = ChatPromptTemplate.from_messages(messages)
-                chain = prompt_template | llm | StrOutputParser()
+                configured_max_workers = int(max_workers_env)
+            except ValueError:
+                configured_max_workers = config.get("max_parallel_workers", 5)
+        else:
+            configured_max_workers = config.get("max_parallel_workers", 5)
 
-                response = chain.invoke({
-                    "source_language": config.get("source_language", "english"),
-                    "target_language": config.get("target_language", "arabic"),
-                    "content_type": config.get("content_type", "general document"),
-                    "chunk_content": chunk_text
-                })
+        actual_workers = min(configured_max_workers, len(worker_inputs))
 
-                log_to_state(state, f"Chunk {idx+1}/{len(chunks)} terminology response: {response}", "DEBUG", node=NODE_NAME)
+        log_to_state(state, f"Starting parallel terminology extraction for {len(worker_inputs)} chunks using {actual_workers} workers (max configured: {configured_max_workers}).", "INFO", node=NODE_NAME)
 
-                response_data = safe_json_parse(response, state, NODE_NAME)
+        # Run workers in parallel
+        results = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=actual_workers) as executor:
+            future_to_index = {executor.submit(terminology_extraction_worker, inp): inp["index"] for inp in worker_inputs}
 
-                if isinstance(response_data, list):
-                    for term_data in response_data:
-                        if not isinstance(term_data, dict):
-                            continue
-                        source_term = term_data.get("sourceTerm")
-                        if not isinstance(source_term, str) or not source_term.strip():
-                            continue
-                        if source_term in seen_terms:
-                            continue  # Deduplicate, keep first occurrence
-                        seen_terms.add(source_term)
+            for future in concurrent.futures.as_completed(future_to_index):
+                idx = future_to_index[future]
+                try:
+                    result = future.result()
+                    results.append(result)
 
-                        # Validate proposedTranslations
-                        translations = term_data.get("proposedTranslations", {})
-                        if not isinstance(translations, dict) or "default" not in translations:
-                            translations = {"default": ""}
+                    if "error" in result:
+                        log_to_state(state, f"Worker error (Chunk {idx + 1}/{len(worker_inputs)}): {result['error']}", "ERROR", node=NODE_NAME)
+                    else:
+                        log_to_state(state, f"Successfully extracted terminology for chunk {idx + 1}/{len(worker_inputs)}.", "DEBUG", node=NODE_NAME)
 
-                        entry = TerminologyEntry(
-                            termId=f"term_{uuid.uuid4()}",
-                            sourceTerm=source_term,
-                            context=term_data.get("context", ""),
-                            proposedTranslations=translations,
-                            status="pending",
-                            approvedTranslation=None,
-                            variants=term_data.get("variants", [])
-                        )
+                except Exception as e:
+                    log_to_state(state, f"Exception in terminology worker for chunk {idx + 1}: {type(e).__name__}: {e}", "ERROR", node=NODE_NAME)
 
-                        # Ensure variants is a list of strings
-                        if not isinstance(entry["variants"], list) or not all(isinstance(v, str) for v in entry["variants"]):
-                            entry["variants"] = []
+        # Aggregate and deduplicate terms
+        try:
+            for result in results:
+                if "terms" not in result:
+                    continue
+                for entry in result["terms"]:
+                    source_term = entry.get("sourceTerm")
+                    if not isinstance(source_term, str) or not source_term.strip():
+                        continue
+                    if source_term in seen_terms:
+                        continue
+                    seen_terms.add(source_term)
+                    all_terms.append(entry)
+        except Exception as agg_error:
+            log_to_state(state, f"Error during terminology aggregation: {type(agg_error).__name__}: {agg_error}", "ERROR", node=NODE_NAME)
+            # Depending on desired behavior, might want to clear all_terms or proceed with partial data
+            all_terms = [] # Clear terms if aggregation fails
+        log_to_state(state, f"Preparing to assign terminology list. Type: {type(all_terms)}, Length: {len(all_terms)}", "DEBUG", node=NODE_NAME)
+        log_to_state(state, f"Full extracted terminology list: {all_terms}", "DEBUG", node=NODE_NAME)
+        try:
+            state["contextualized_glossary"] = all_terms
+            log_to_state(state, f"Unified terminology extraction complete. Total unique terms: {len(all_terms)}", "INFO", node=NODE_NAME)
+        except Exception as assign_error:
+            log_to_state(state, f"Error assigning terminology list: {type(assign_error).__name__}: {assign_error}", "CRITICAL", node=NODE_NAME)
+            state["contextualized_glossary"] = []
 
-                        all_terms.append(entry)
-
-            except Exception as e:
-                log_to_state(state, f"Error processing chunk {idx+1}: {type(e).__name__}: {e}", "ERROR", node=NODE_NAME)
-                continue  # Skip this chunk on error
-
-        state["unified_terminology"] = all_terms
-        log_to_state(state, f"Unified terminology extraction complete. Total unique terms: {len(all_terms)}", "INFO", node=NODE_NAME)
-
-    except Exception as e:
-        log_to_state(state, f"Critical error in terminology_unification: {type(e).__name__}: {e}", "CRITICAL", node=NODE_NAME)
-        state["unified_terminology"] = []
+    except Exception:
+        log_to_state(state, "Critical error in terminology_unification.", "CRITICAL", node=NODE_NAME)
+        state["contextualized_glossary"] = []
 
     return state

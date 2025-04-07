@@ -18,14 +18,11 @@ class Metrics(TypedDict):
     # chunk_stats: List[Dict[str, Any]]
 
 class TerminologyEntry(TypedDict):
-    termId: str
     sourceTerm: str
     context: Optional[str]
     # Allow multiple proposed, but keep 'default' convention
     proposedTranslations: Dict[str, str]
-    status: Literal["pending", "approved", "conflict"]
     # Added field for review feedback
-    approvedTranslation: Optional[str]
     # Optional variants field
     variants: Optional[List[str]]
 
@@ -40,10 +37,7 @@ class TranslationState(TypedDict):
 
     # Core data flow
     chunks: Optional[List[str]]
-    glossary: Optional[List[Dict[str, Any]]]  # Initial extracted terms (before contextualization)
-    terminology: Optional[List[TerminologyEntry]]  # Deprecated - will be removed after migration
     contextualized_glossary: Optional[List[Dict[str, Any]]]  # Enhanced terms with context
-    basic_translation_chunks: Optional[List[Optional[str]]]  # Initial translation before critique
     translated_chunks: Optional[List[Optional[str]]]  # Final translation chunks (deprecated - will be removed)
     parallel_worker_results: Optional[List[Dict[str, Any]]]  # Intermediate results
     critiques: Optional[List[Dict[str, Any]]]  # Structured feedback from critique stage (plural)
