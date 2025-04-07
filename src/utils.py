@@ -19,7 +19,7 @@ def log_to_state(state: TranslationState, message: str, level: LogLevel = "INFO"
     )
     state["logs"].append(entry)
     # Optionally print logs to console as well during development
-    print(f"LOG: [{entry['timestamp']}] [{entry['level']}] [{entry.get('node','N/A')}] {entry['message']}") # Use .get for node
+    # print(f"LOG: [{entry['timestamp']}] [{entry['level']}] [{entry.get('node','N/A')}] {entry['message']}") # Disabled duplicate console log
     # Also log to the file logger
     logger = logging.getLogger("turjuman")
     log_msg = f"[{entry['level']}] [{entry.get('node','N/A')}] {entry['message']}"

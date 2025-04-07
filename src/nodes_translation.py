@@ -44,7 +44,7 @@ def run_parallel_translation(state: TranslationState) -> TranslationState:
 
 
     config = state.get("config", {})
-    terminology = state.get("terminology", [])
+    terminology = state.get("unified_terminology", [])
     total_chunks = len(chunks)
     state["parallel_worker_results"] = [] # Reset results list for this run
 

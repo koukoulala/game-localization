@@ -6,8 +6,7 @@ try:
     # Import node functions from their refactored locations
     from .nodes_preprocessing import (
         init_translation,
-        extract_terminology,
-        search_node,
+        terminology_unification,
         chunk_document
     )
     from .nodes_translation import run_parallel_translation
@@ -22,8 +21,7 @@ except ImportError: # Fallback if run directly? Less ideal.
      # Import node functions from their refactored locations (fallback)
      from .nodes_preprocessing import (
          init_translation,
-         extract_terminology,
-         search_node,
+         terminology_unification,
          chunk_document
      )
      from .nodes_translation import run_parallel_translation
@@ -45,19 +43,17 @@ workflow = StateGraph(TranslationState)
 # Add nodes using the enhanced functions
 # Use unique names matching the function names for clarity
 workflow.add_node("init_translation", init_translation)
-workflow.add_node("analysis", extract_terminology)  # Renamed from extract_terminology
-workflow.add_node("search", search_node)  # New node
+workflow.add_node("terminology_unification", terminology_unification)
 workflow.add_node("chunk_document", chunk_document)
-workflow.add_node("initial_translation", run_parallel_translation)  # Renamed
-workflow.add_node("critique_stage", critique_node)  # Renamed node
-workflow.add_node("final_translation", final_translation_node)  # New node
-workflow.add_node("assemble_document", assemble_document) # Add the assembly node
+workflow.add_node("initial_translation", run_parallel_translation)
+workflow.add_node("critique_stage", critique_node)
+workflow.add_node("final_translation", final_translation_node)
+workflow.add_node("assemble_document", assemble_document)
 
 # Define Edges and Entry Point
 workflow.set_entry_point("init_translation")
-workflow.add_edge("init_translation", "analysis")
-workflow.add_edge("analysis", "search")
-workflow.add_edge("search", "chunk_document")
+workflow.add_edge("init_translation", "terminology_unification")
+workflow.add_edge("terminology_unification", "chunk_document")
 workflow.add_edge("chunk_document", "initial_translation")
 workflow.add_edge("initial_translation", "critique_stage") # Updated edge target
 
