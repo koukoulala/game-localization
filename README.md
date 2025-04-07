@@ -71,15 +71,33 @@ Turjuman uses a smart pipeline powered by LangGraph 🦜🔗:
 ### 📊 Translation Flow
 
 ```mermaid
-graph TD
-    A[Start 🚀<br>init_translation] --> B{Terminology Unification 🧐<br>terminology_unification}
-    B --> C[Chunk Document ✂️<br>chunk_document]
-    C --> D[Parallel Translation 🌐<br>initial_translation]
-    D --> E{Critique Stage 🤔<br>critique_stage}
-    E -- No Critical Errors --> F[Final Translation ✨<br>final_translation]
-    E -- Critical Error --> G([End 🛑])
-    F --> H[Assemble Document 📜<br>assemble_document]
-    H --> G
+flowchart TD
+    A([🚀 init_translation<br><sub>Initialize translation state and configs</sub>]) --> B([🧐 terminology_unification<br><sub>Extract key terms, unify glossary, prepare context</sub>])
+    B --> C([✂️ chunk_document<br><sub>Split the book into manageable chunks</sub>])
+
+    %% Chunking produces multiple chunks
+    C --> D1([📦 Chunk 1])
+    C --> D2([📦 Chunk 2])
+    C --> D3([📦 Chunk N])
+
+    %% Parallel translation workers
+    D1 --> E1([🌐 initial_translation<br><sub>Translate chunk 1 in parallel</sub>])
+    D2 --> E2([🌐 initial_translation<br><sub>Translate chunk 2 in parallel</sub>])
+    D3 --> E3([🌐 initial_translation<br><sub>Translate chunk N in parallel</sub>])
+
+    %% Merge all translations
+    E1 --> F([🤔 critique_stage<br><sub>Review translations, check quality and consistency</sub>])
+    E2 --> F
+    E3 --> F
+
+    %% Decision after critique
+    F --> |No critical errors| G([✨ final_translation<br><sub>Refine translations based on feedback</sub>])
+    F --> |Critical error| H([🛑 End<br><sub>Stop translation due to errors</sub>])
+
+    G --> I([📜 assemble_document<br><sub>Merge all refined chunks into final output</sub>])
+    I --> J([🏁 Done<br><sub>Translation complete!</sub>])
+
+    H --> J
 ```
 
 ---
