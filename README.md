@@ -60,8 +60,13 @@ flowchart TD
 
 - **Conda**: Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html) or [Anaconda](https://www.anaconda.com/products/distribution)
 - **API Keys**: Get your API keys for OpenAI, Anthropic, etc.
+- **Ollama**: You can use Turjuman locally without paying for LLM by installing Ollama or any Local Inference server like LMstudio, vLLM, LLamaCPP ..etc, take alook at sample.env for details
 
-2. **Clone the Repository**
+**Recommended Models**
+- **Online**: Gemini Flash/Pro
+- **Local**: Gemma3 / Aya / Mistral 
+
+1. **Clone the Repository**
 
 ```bash
 git clone <your-repo-url>
