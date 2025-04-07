@@ -121,6 +121,53 @@ streamlit run translate_over_api_frontend_streamlit.py
 ![Streamlit UI](Docs/streamlit.jpg)
 
 ---
+##  BASH Script Client
+
+A convenient command-line client script (`translate_over_api_terminal.sh`) is provided for interacting with the backend API.
+
+**Prerequisites:** `curl`, `jq`
+
+**Getting Help:**
+
+The script includes detailed usage instructions. To view them, run:
+
+```bash
+./translate_over_api_terminal.sh --help
+```
+or
+```bash
+./translate_over_api_terminal.sh -h
+```
+
+**Basic Usage:**
+
+The only required argument is the input file (`-i` or `--input`). Other options allow you to specify languages, provider, model, API URL, and output file path.
+
+```bash
+# Translate a file using default settings (English->Arabic, OpenAI provider, default model)
+# Ensure OPENAI_API_KEY is set in .env if using openai
+./translate_over_api_terminal.sh -i path/to/your/document.md
+
+# Specify languages, provider, model, and save response to a specific file
+./translate_over_api_terminal.sh \
+  --input my_book.md \
+  --output results/my_book_translated.json \
+  --source english \
+  --target french \
+  --provider ollama \
+  --model llama3
+
+# Use a different API endpoint
+./translate_over_api_terminal.sh -i chapter1.md -u http://192.168.1.100:8051
+
+# List available models fetched from the backend API
+./translate_over_api_terminal.sh --list-models
+```
+
+The script submits the job via the API. Since the API call is synchronous, the script waits for completion and saves the full JSON response (containing the final state and the translated document in `output.final_document`) to a file (default: `<input_name>_<job_id>.json` or the path specified with `--output`). It also provides the `curl` command to retrieve the final state again using the job ID.
+
+---
+---
 ## 🗺️ Future Plans
 
 - Support for PDF, DOCX, and other formats
