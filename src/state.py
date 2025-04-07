@@ -48,10 +48,6 @@ class TranslationState(TypedDict):
     parallel_worker_results: Optional[List[Dict[str, Any]]]  # Intermediate results
     critiques: Optional[List[Dict[str, Any]]]  # Structured feedback from critique stage (plural)
 
-    # Human Review
-    human_review_required: bool
-    human_feedback_data: Optional[Dict[str, str]] # termId -> approved_translation
-
     # Output & Errors
     final_document: Optional[str]
     error_info: Optional[str] # Store critical error messages

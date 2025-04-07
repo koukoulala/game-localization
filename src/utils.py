@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Dict, Optional, Any
 # Ensure imports use the correct relative path if run as part of a package
 # If running scripts directly, ensure PYTHONPATH is set or use absolute imports if needed.
@@ -19,6 +20,22 @@ def log_to_state(state: TranslationState, message: str, level: LogLevel = "INFO"
     state["logs"].append(entry)
     # Optionally print logs to console as well during development
     print(f"LOG: [{entry['timestamp']}] [{entry['level']}] [{entry.get('node','N/A')}] {entry['message']}") # Use .get for node
+    # Also log to the file logger
+    logger = logging.getLogger("turjuman")
+    log_msg = f"[{entry['level']}] [{entry.get('node','N/A')}] {entry['message']}"
+    if level == "DEBUG":
+        logger.debug(log_msg)
+    elif level == "INFO":
+        logger.info(log_msg)
+    elif level == "WARNING":
+        logger.warning(log_msg)
+    elif level == "ERROR":
+        logger.error(log_msg)
+    elif level == "CRITICAL":
+        logger.critical(log_msg)
+    else:
+        logger.info(log_msg)
+    
 
 # --- Progress Utility ---
 def update_progress(state: TranslationState, step: str, percent: Optional[float] = None):

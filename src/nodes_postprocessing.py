@@ -121,9 +121,6 @@ def critique_node(state: TranslationState) -> TranslationState:
             update_progress(state, NODE_NAME, current_progress)
 
 
-    # Check for overall critique quality or specific issues if needed
-    # Example: Flag for human review if average score is low or many issues found
-    # ...
 
     update_progress(state, NODE_NAME, 80.0) # Mark end of critique stage
     return state
@@ -160,8 +157,7 @@ def verify_consistency(state: TranslationState) -> TranslationState:
                  # Could add more detail here
 
     if consistency_issues_found:
-        # Optionally trigger human review or specific actions
-        # state["human_review_required"] = True
+        # TODO: add logic for handling consistency_issues_found
         pass
 
     log_to_state(state, "Consistency verification step complete.", "INFO", node=NODE_NAME)
@@ -184,11 +180,6 @@ def final_translation_node(state: TranslationState) -> TranslationState:
     critiques = state.get("critiques")
 
     # Check if refinement is needed/possible
-    # Skip if human review was done and applied (assuming human feedback is final)
-    if state.get("human_feedback_data") is not None: # Check if feedback *was* present before apply_review cleared it
-         log_to_state(state, "Skipping final refinement node as human feedback was applied.", "INFO", node=NODE_NAME)
-         update_progress(state, NODE_NAME, 95.0) # Jump progress to match apply_review end
-         return state
 
     if not original_chunks or not translated_chunks or not critiques or \
        len(original_chunks) != len(translated_chunks) or len(original_chunks) != len(critiques):

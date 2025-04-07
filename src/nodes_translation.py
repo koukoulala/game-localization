@@ -132,10 +132,8 @@ def run_parallel_translation(state: TranslationState) -> TranslationState:
     failed_chunks = [i + 1 for i, chunk in enumerate(state["translated_chunks"]) if chunk is None]
     if failed_chunks:
         log_to_state(state, f"Translation failed for chunks: {failed_chunks}", "WARNING", node=NODE_NAME)
-        # Optionally set an error state or flag for human review
         current_error_info = state.get("error_info") or "" # Default to empty string if None or empty
         state["error_info"] = current_error_info + f" | Failed to translate chunks: {failed_chunks}"
-        # state["human_review_required"] = True # Example: trigger review on failure
 
     update_progress(state, NODE_NAME, 60.0) # Mark end of this stage
     return state

@@ -216,7 +216,6 @@ def get_llm_client(config: Dict[str, Any], role: str = "default") -> BaseChatMod
                 model=resolved_model_name,
                 google_api_key=api_key, # type: ignore
                 temperature=temperature,
-                convert_system_message_to_human=True
             )
 
         elif provider == "mistral":

@@ -11,8 +11,8 @@ prompts:
       - "variants": A list of variant forms of the term (list of strings), can be empty []. e.g., ["variant1", "variant2"]
       Example Object: {{"sourceTerm": "API Key", "context": "generate an API Key", "proposedTranslations": {{"default": "Clave de API"}}, "variants": ["API Keys", "API key"]}}
       Do NOT include explanations or surrounding text outside the JSON list.
-    human: |
-      TEXT TO ANALYZE (first 8000 chars):
+
+      TEXT TO ANALYZE:
       ```
       {markdown_content}
       ```
@@ -22,11 +22,10 @@ prompts:
       You are a linguistic researcher specializing in {content_type} terminology. Given a list of terms and their proposed translations, you enhance them with contextual examples and usage notes.
       Return ONLY a valid JSON list of objects. Each object MUST have:
       - "sourceTerm": Original term (string)
-      - "contextualExamples": 2-3 example sentences showing usage (list of strings)
+      - "contextualExamples": 1-2 example sentences showing usage (list of strings)
       - "proposedTranslations": Object with "default" translation and optional alternatives
       - "usageNotes": Brief notes on proper usage (string)
       - "confidenceScore": Your confidence in the translation (1-5)
-    human: |
       TERMS TO CONTEXTUALIZE:
       {glossary}
 
@@ -34,13 +33,12 @@ prompts:
       ```
       {document_context}
       ```
-
   translation:
     system: |
       You are an expert educator and explainer specializing in {content_type} from {source_language} to {target_language}.
-      
-      YOUR MOST CRITICAL RESPONSIBILITY is explain in your way and not just translate, while creating explaination you MUST PRESERVE ALL ORIGINAL MARKDOWN SYNTAX AND STRUCTURE EXACTLY as it appears in the source text.
-      
+
+      YOUR MOST CRITICAL RESPONSIBILITY is to explain in your way and not just translate, while creating explanation you MUST PRESERVE ALL ORIGINAL MARKDOWN SYNTAX AND STRUCTURE EXACTLY as it appears in the source text.
+
       MARKDOWN PRESERVATION RULES (CRITICAL):
       1. Headings: Keep all `#`, `##`, etc. exactly as they appear
       2. Lists: Maintain all `-`, `*`, `1.` markers with their exact indentation
@@ -63,12 +61,8 @@ prompts:
       - Do not add explanations or notes
       - Do not add or remove any markdown elements
       - Ensure the output can be parsed as valid markdown
-    human: |
-      {term_guidance}
 
-      Translate the following text block from {source_language} to {target_language}.
-      YOU MUST PRESERVE ALL MARKDOWN SYNTAX, CODE BLOCKS, AND IMAGE REFERENCES EXACTLY AS THEY APPEAR.
-      
+      DOCUMENT CONTENT FOR TRANSLATION
       ```markdown
       {chunk_text}
       ```
@@ -86,7 +80,7 @@ prompts:
       - "glossaryAdherence": List of terms with issues
       - "suggestedImprovements": Specific suggested changes
       - "overallAssessment": Brief summary
-    human: |
+
       ORIGINAL TEXT:
       ```
       {original_text}
@@ -111,7 +105,7 @@ prompts:
       
       PRESERVE ALL MARKDOWN/CODE STRUCTURE.
       Return ONLY the final translated text.
-    human: |
+
       ORIGINAL:
       ```
       {original_text}
@@ -151,7 +145,7 @@ prompts:
       {{"isValid": <boolean>, "reason": "<string>"}}
       - "isValid": true if the text seems okay (only contains allowed content), false if unrelated language detected.
       - "reason": Brief explanation ONLY if isValid is false (e.g., "Detected Spanish words."), otherwise "".
-    human: |
+
       Source Language: {source_language}
       Target Language: {target_language}
 

@@ -85,7 +85,6 @@ workflow.add_conditional_edges(
 # --- Final Translation Path ---
 workflow.add_edge("final_translation", "assemble_document") # Route to assembly
 workflow.add_edge("assemble_document", END) # End after assembly
-# --- Human Review Path ---
 
 # Compile the basic workflow
 compiled_graph = workflow.compile()

@@ -3,6 +3,9 @@ import requests
 import time as time_module
 import json
 import re
+import os
+from datetime import datetime
+
 
 def clean_markdown(text):
     # Remove ```markdown blocks but keep ```python, ```bash, etc.
@@ -114,8 +117,6 @@ def submit_job(content):
             "translated_chunks": None,
             "parallel_worker_results": None,
             "critiques": None,
-            "human_review_required": False,
-            "human_feedback_data": None,
             "final_document": None,
             "error_info": None,
             "metrics": {
@@ -134,6 +135,25 @@ def submit_job(content):
         response.raise_for_status()
         st.session_state['job_id'] = job_id
         st.session_state['response_json'] = response.json()
+
+        # Automatically save JSON response to app directory
+        save_dir = os.path.dirname(os.path.abspath(__file__))
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_path = os.path.join(save_dir, f"response_{timestamp}.json")
+
+        with open(save_path, "w", encoding="utf-8") as f:
+            json.dump(st.session_state['response_json'], f, ensure_ascii=False, indent=2)
+
+        st.session_state['last_response_json_path'] = save_path
+
+        # Automatically save JSON response to app directory
+        save_dir = os.path.dirname(os.path.abspath(__file__))
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_path = os.path.join(save_dir, f"response_{timestamp}.json")
+
+        with open(save_path, "w", encoding="utf-8") as f:
+            json.dump(st.session_state['response_json'], f, ensure_ascii=False, indent=2)
+
         return True
     except Exception as e:
         st.error(f"Failed to submit job: {e}")
@@ -191,7 +211,8 @@ if uploaded_file:
                 if final_doc:
                     st.session_state['translated_content'] = final_doc
                 else:
-                    st.warning("No translated document found in response.")
+                    json_path = st.session_state.get('last_response_json_path', 'unknown')
+                    st.warning(f"No translated document found in response. Full JSON saved at: {json_path}")
 
 if st.session_state.get('translated_content'):
     btn_col1, btn_col2 = st.columns(2)

@@ -75,23 +75,18 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         translation_system_prompt = prompts["prompts"]["translation"]["system"].format(
             content_type=enhanced_content_type,
             source_language=config.get('source_language', 'english'),
-            target_language=config.get('target_language', 'arabic')
-        )
-        translation_human_prompt = prompts["prompts"]["translation"]["human"].format(
-            term_guidance=term_guidance,
-            source_language=config.get('source_language', 'english'),
             target_language=config.get('target_language', 'arabic'),
             chunk_text=chunk_text
         )
-        if has_images or has_code:
-            reminder = f"\n⚠️ CRITICAL REMINDER: This chunk contains {'BOTH IMAGES AND CODE BLOCKS' if has_images and has_code else ('IMAGES' if has_images else 'CODE BLOCKS')}. You MUST translate ALL text to {config.get('target_language','arabic')} EXCEPT image references and code blocks.\n\n"
-            translation_human_prompt = reminder + translation_human_prompt
 
-        translation_messages = [("system", translation_system_prompt), ("human", translation_human_prompt)]
+        translation_messages = [("system", translation_system_prompt)]
         translation_prompt_template = ChatPromptTemplate.from_messages(translation_messages)
         translation_chain = translation_prompt_template | llm | StrOutputParser()
+        log_to_state(state_essentials, f"Translation prompt messages: {translation_messages}", "LLM_TRACK", node=NODE_NAME)
+        
 
         translation_response = translation_chain.invoke({})
+        log_to_state(state_essentials, f"Raw translation response: {translation_response}", "LLM_TRACK", node=NODE_NAME)
         translated_text = translation_response
         translation_metadata = getattr(translation_response, 'response_metadata', {})
 
@@ -112,9 +107,8 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
             "translated_text": translated_text
         }
         raw_verification_system_prompt = prompts["prompts"]["translation_verification"]["system"]
-        raw_verification_human_prompt = prompts["prompts"]["translation_verification"]["human"]
 
-        verification_messages = [("system", raw_verification_system_prompt), ("human", raw_verification_human_prompt)]
+        verification_messages = [("system", raw_verification_system_prompt)]
         verification_prompt_template = ChatPromptTemplate.from_messages(verification_messages)
         verification_chain = verification_prompt_template | llm | StrOutputParser()
 
@@ -211,10 +205,10 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
             prompts = yaml.safe_load(f)
 
         messages = [
-            ("system", prompts["prompts"]["critique"]["system"]),
-            ("human", prompts["prompts"]["critique"]["human"])
+            ("system", prompts["prompts"]["critique"]["system"])
         ]
         prompt_template = ChatPromptTemplate.from_messages(messages)
+        log_to_state(state_essentials, f"Critique prompt messages: {messages}", "LLM_TRACK", node=NODE_NAME)
         chain = prompt_template | llm | StrOutputParser() # Expecting JSON string
 
         response = chain.invoke({
@@ -223,6 +217,7 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
             "original_text": original_chunk,
             "translated_text": translated_chunk
         })
+        log_to_state(state_essentials, f"Raw critique response: {response}", "LLM_TRACK", node=NODE_NAME)
 
         metadata = getattr(response, 'response_metadata', {})
 
@@ -290,10 +285,10 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
 
         # Use the correct prompt key from prompts.yaml
         messages = [
-            ("system", prompts["prompts"]["final_translation"]["system"]),
-            ("human", prompts["prompts"]["final_translation"]["human"])
+            ("system", prompts["prompts"]["final_translation"]["system"])
         ]
         prompt_template = ChatPromptTemplate.from_messages(messages)
+        log_to_state(state_essentials, f"Final translation prompt messages: {messages}", "LLM_TRACK", node=NODE_NAME)
         chain = prompt_template | llm | StrOutputParser() # Expecting refined text
 
         response = chain.invoke({
@@ -306,6 +301,7 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
             "basic_translation": translated_chunk,
             "glossary": json.dumps(state_essentials.get("contextualized_glossary", state_essentials.get("glossary", {}))) # Pass glossary
         })
+        log_to_state(state_essentials, f"Raw final translation response: {response}", "LLM_TRACK", node=NODE_NAME)
 
         metadata = getattr(response, 'response_metadata', {})
 

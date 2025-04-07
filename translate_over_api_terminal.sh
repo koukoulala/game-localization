@@ -211,8 +211,6 @@ JSON_PAYLOAD=$(jq -n \
     "translated_chunks": null,
     "parallel_worker_results": null,
     "critiques": null,
-    "human_review_required": false,
-    "human_feedback_data": null,
     "final_document": null,
     "error_info": null,
     "metrics": {

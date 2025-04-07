@@ -49,8 +49,6 @@ def init_translation(state: TranslationState) -> TranslationState:
     state_dict.setdefault('terminology', None)
     state_dict.setdefault('translated_chunks', None)
     state_dict.setdefault('parallel_worker_results', None)
-    state_dict.setdefault('human_review_required', False) # Ensure default
-    state_dict.setdefault('human_feedback_data', None)
     state_dict.setdefault('critiques', []) # Explicitly initialize critiques list
     state_dict.setdefault('final_chunks', None) # Initialize final_chunks list
     state_dict.setdefault('final_document', None)
@@ -83,17 +81,18 @@ def search_node(state: TranslationState) -> TranslationState:
             prompts = yaml.safe_load(f)
 
         messages = [
-            ("system", prompts["prompts"]["glossary_contextualization"]["system"]),
-            ("human", prompts["prompts"]["glossary_contextualization"]["human"])
+            ("system", prompts["prompts"]["glossary_contextualization"]["system"])
         ]
 
         prompt_template = ChatPromptTemplate.from_messages(messages)
+        log_to_state(state, f"Glossary contextualization prompt messages: {messages}", "DEBUG", node=NODE_NAME)
         chain = prompt_template | llm | StrOutputParser()
-
+        # TODO: enhance the glossary extraction, replace the 8000 token with better extraction logic
         response = chain.invoke({
             "glossary": json.dumps(state["glossary"]),
             "document_context": state["original_content"][:8000]  # Limit context size
         })
+        log_to_state(state, f"Raw glossary contextualization response: {response}", "DEBUG", node=NODE_NAME)
 
         contextualized_glossary = safe_json_parse(response, state, NODE_NAME)
         if contextualized_glossary:
@@ -136,11 +135,11 @@ def extract_terminology(state: TranslationState) -> TranslationState:
             prompts = yaml.safe_load(f)
 
         messages = [
-            ("system", prompts["prompts"]["terminology_extraction"]["system"]),
-            ("human", prompts["prompts"]["terminology_extraction"]["human"])
+            ("system", prompts["prompts"]["terminology_extraction"]["system"])
         ]
 
         prompt_template = ChatPromptTemplate.from_messages(messages)
+        log_to_state(state, f"Terminology extraction prompt messages: {messages}", "DEBUG", node=NODE_NAME)
         # Using StrOutputParser first to allow cleaning before JSON parsing
         chain = prompt_template | llm | StrOutputParser()
 
@@ -154,6 +153,7 @@ def extract_terminology(state: TranslationState) -> TranslationState:
             "content_type": config.get("content_type", "general document"),
             "markdown_content": limited_content
         })
+        log_to_state(state, f"Raw terminology extraction response: {response}", "DEBUG", node=NODE_NAME)
 
         response_str = response # Assume StrOutputParser returns string
         metadata = getattr(response, 'response_metadata', {}) # Check if response object has metadata

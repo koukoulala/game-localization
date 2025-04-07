@@ -2,7 +2,30 @@
 
 from dotenv import load_dotenv
 import os
+import logging
+from datetime import datetime
 load_dotenv() # Load environment variables from .env file
+
+# --- Setup file logger ---
+log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logs")
+os.makedirs(log_dir, exist_ok=True)
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+log_file = os.path.join(log_dir, f"server_log_{timestamp}.log")
+
+file_handler = logging.FileHandler(log_file, encoding="utf-8")
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
+file_handler.setFormatter(formatter)
+
+logger = logging.getLogger("turjuman")
+logger.setLevel(logging.DEBUG)
+logger.addHandler(file_handler)
+
+# Optional: also log to console
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+logger.info(f"Server started, logging to {log_file}")
 
 from .providers import list_available_providers
 list_available_providers()  # Print available providers/models at startup
