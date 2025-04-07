@@ -1,6 +1,6 @@
 # 📖 Turjuman: Your Smart Book Translation System - Locally and privately hosted 🌍
 
-[![Awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)](https://github.com/sindresorhus/awesome) ![Python](https://img.shields.io/badge/Python-3.12-blueviolet) ![Status](https://img.shields.io/badge/status-beta-orange)
+![Python](https://img.shields.io/badge/Python-3.12-blueviolet) ![Status](https://img.shields.io/badge/status-beta-orange)
 
 Welcome to **Turjuman** (ترجمان - *Interpreter/Translator* in Arabic)! 👋
 
