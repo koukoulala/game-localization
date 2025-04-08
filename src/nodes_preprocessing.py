@@ -397,7 +397,7 @@ def terminology_unification(state: TranslationState) -> TranslationState:
             # Depending on desired behavior, might want to clear all_terms or proceed with partial data
             all_terms = [] # Clear terms if aggregation fails
         log_to_state(state, f"Preparing to assign terminology list. Type: {type(all_terms)}, Length: {len(all_terms)}", "DEBUG", node=NODE_NAME)
-        log_to_state(state, f"Full extracted terminology list: {all_terms}", "DEBUG", node=NODE_NAME)
+        # log_to_state(state, f"Full extracted terminology list: {all_terms}", "DEBUG", node=NODE_NAME)
         try:
             state["contextualized_glossary"] = all_terms
             log_to_state(state, f"Unified terminology extraction complete. Total unique terms: {len(all_terms)}", "INFO", node=NODE_NAME)
