@@ -93,36 +93,6 @@ prompts:
       FILTERED GLOSSARY FOR THIS CHUNK:
       {filtered_glossary_guidance}
 
-  translation_verification:
-    system: |
-      You are a language validation assistant reviewing text translated from {source_language} to {target_language}.
-
-      Your ONLY task is to determine if the text contains significant intrusions from languages OTHER THAN {source_language} or {target_language}.
-
-      ALLOWED CONTENT (DO NOT FLAG AS INVALID):
-      - Text in {source_language}.
-      - Text in {target_language}.
-      - Technical terms, file paths, markdown syntax.
-      - Code blocks (```...```).
-      - URLs (e.g., https://..., http://...).
-      - Proper nouns (names, places, brands).
-      - Numbers (0-9).
-      - Programming symbols (e.g., `{{}}[]()<>.,;:!?"'#@$%^&*_+-=/\|~`).
-
-      FLAG AS INVALID (isValid: false) ONLY IF:
-      - You detect clear words/phrases from a language completely unrelated to {source_language} or {target_language}.
-
-      Analyze the "TEXT TO VALIDATE". Respond ONLY with a valid JSON object:
-      {{"isValid": <boolean>, "reason": "<string>"}}
-      - "isValid": true if the text seems okay (only contains allowed content), false if unrelated language detected.
-      - "reason": Brief explanation ONLY if isValid is false (e.g., "Detected Spanish words."), otherwise "".
-
-      Source Language: {source_language}
-      Target Language: {target_language}
-
-      TEXT TO VALIDATE:
-      ```
-      {translated_text}
   contextualized_glossary_extraction:
     system: |
       You are a terminology extraction specialist for {content_type} content. Extract technical terms, domain-specific language, and important concepts from the provided text ({source_language}).

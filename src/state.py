@@ -20,10 +20,7 @@ class Metrics(TypedDict):
 class TerminologyEntry(TypedDict):
     sourceTerm: str
     context: Optional[str]
-    # Allow multiple proposed, but keep 'default' convention
     proposedTranslations: Dict[str, str]
-    # Added field for review feedback
-    # Optional variants field
     variants: Optional[List[str]]
 
 # Define the state structure

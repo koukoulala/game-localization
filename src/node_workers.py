@@ -114,54 +114,12 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
                 "warning": warning_msg
             }
 
-        # --- Verification ---
-        verification_context = {
-            "source_language": config.get('source_language', 'english'),
-            "target_language": config.get('target_language', 'arabic'),
-            "translated_text": translated_text
-        }
-        raw_verification_system_prompt = prompts["prompts"]["translation_verification"]["system"]
-
-        verification_messages = [("system", raw_verification_system_prompt)]
-        verification_prompt_template = ChatPromptTemplate.from_messages(verification_messages)
-        verification_chain = verification_prompt_template | llm | StrOutputParser()
-
-        verification_response_str = verification_chain.invoke(verification_context)
-        verification_metadata = getattr(verification_response_str, 'response_metadata', {})
-
-        hallucination_warning = None
-        try:
-            # Strip Markdown code block formatting if present
-            cleaned_verification_str = verification_response_str.strip()
-            if cleaned_verification_str.startswith("```"):
-                # Remove leading ``` and optional language tag
-                first_newline = cleaned_verification_str.find('\n')
-                if first_newline != -1:
-                    cleaned_verification_str = cleaned_verification_str[first_newline+1:]
-                # Remove trailing ```
-                if cleaned_verification_str.endswith("```"):
-                    cleaned_verification_str = cleaned_verification_str[:-3].rstrip()
-            else:
-                cleaned_verification_str = verification_response_str
-
-            verification_data = json.loads(cleaned_verification_str)
-            is_valid = verification_data.get("isValid", False)
-            reason = verification_data.get("reason", "")
-
-            if not is_valid:
-                hallucination_warning = f"{worker_log_prefix}: Potential hallucination detected during verification. Reason: '{reason}'. Raw: '{verification_response_str[:100]}...'"
-                log_to_state(state_essentials, hallucination_warning, "WARNING", node=NODE_NAME)
-
-        except json.JSONDecodeError:
-            hallucination_warning = f"{worker_log_prefix}: Failed to parse verification JSON response. Raw: '{verification_response_str[:100]}...'"
-            log_to_state(state_essentials, hallucination_warning, "WARNING", node=NODE_NAME)
-
         # Add chunk size and filtered term count to the result
         return {
             "index": index,
             "translated_text": translated_text,
             "node_name": NODE_NAME,
-            "hallucination_warning": hallucination_warning,
+            # "hallucination_warning": None, # Removed
             "chunk_size": len(chunk_text), # Add original chunk size
             "filtered_term_count": len(filtered_terminology), # Add filtered term count
             "prompt_char_count": len(translation_system_prompt) # Add prompt character count
@@ -180,20 +138,6 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         error_msg = f"{worker_log_prefix}: Unexpected error setting up worker or during translation: {type(e).__name__}: {e}"
         return {"index": index, "error": error_msg, "node_name": NODE_NAME}
 
-    # --- Catch errors outside the retry loop (e.g., LLM init, prompt loading) ---
-    except FileNotFoundError:
-         return {"index": index, "error": f"{worker_log_prefix}: Prompts file not found at {prompts_path}", "node_name": NODE_NAME} # Use aggregated usage
-    except KeyError as e:
-         # Check if prompts was loaded before erroring
-         prompt_key = str(e)
-         if 'prompts' in locals() and prompt_key in prompts.get("prompts", {}):
-             location = f"within '{prompt_key}' prompt definition"
-         else:
-             location = "accessing top-level prompt keys"
-         return {"index": index, "error": f"{worker_log_prefix}: Missing key in prompts file ({location}): {e}", "node_name": NODE_NAME}
-    except Exception as e:
-        error_msg = f"{worker_log_prefix}: Unexpected error setting up worker or during non-retryable phase: {type(e).__name__}: {e}"
-        return {"index": index, "error": error_msg, "node_name": NODE_NAME} # Use aggregated usage
 
 
 def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
@@ -252,7 +196,7 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         try:
             # Format the prompt using the context that was actually sent
             formatted_critique_prompt = prompts["prompts"]["critique"]["system"].format(**critique_context)
-            log_to_state(state_essentials, f"{worker_log_prefix}: Critique prompt sent (using filtered glossary):\n---\n{formatted_critique_prompt}\n---", "DEBUG", node=NODE_NAME)
+            # log_to_state(state_essentials, f"{worker_log_prefix}: Critique prompt sent (using filtered glossary):\n---\n{formatted_critique_prompt}\n---", "DEBUG", node=NODE_NAME)
         except KeyError as fmt_err:
              log_to_state(state_essentials, f"{worker_log_prefix}: Error formatting critique prompt for logging: Missing key {fmt_err}", "WARNING", node=NODE_NAME)
         except Exception as log_err:
@@ -358,7 +302,7 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         try:
             # Format the prompt using the context that was actually sent
             formatted_finalize_prompt = prompts["prompts"]["final_translation"]["system"].format(**finalize_context)
-            log_to_state(state_essentials, f"{worker_log_prefix}: Finalize prompt sent (using filtered glossary):\n---\n{formatted_finalize_prompt}\n---", "DEBUG", node=NODE_NAME)
+            # log_to_state(state_essentials, f"{worker_log_prefix}: Finalize prompt sent (using filtered glossary):\n---\n{formatted_finalize_prompt}\n---", "DEBUG", node=NODE_NAME)
         except KeyError as fmt_err:
              log_to_state(state_essentials, f"{worker_log_prefix}: Error formatting finalize prompt for logging: Missing key {fmt_err}", "WARNING", node=NODE_NAME)
         except Exception as log_err:

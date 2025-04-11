@@ -60,12 +60,10 @@ workflow.add_edge("initial_translation", "critique_stage") # Updated edge target
 # Conditional Edge Function - Decides where to go after critique_stage
 def decide_after_critique(state: TranslationState) -> str:
     """Determines next step after critique stage."""
-    print(f"--- Condition: Decide after critique ---")
     if state.get("error_info") and "CRITICAL" in state.get("error_info", ""):
         print(f"-> Critical error detected ('{state['error_info']}'), ending.")
         return END
 
-    print("-> Routing to Final Translation")
     return "final_translation"
 
 # Add Conditional Edges after critique_stage node
