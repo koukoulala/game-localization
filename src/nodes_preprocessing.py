@@ -44,7 +44,7 @@ def terminology_extraction_worker(worker_input: Dict[str, Any]) -> Dict[str, Any
         with open(prompts_path) as f:
             prompts = yaml.safe_load(f)
 
-        prompt_text = prompts["prompts"]["unified_terminology_extraction"]["system"]
+        prompt_text = prompts["prompts"]["contextualized_glossary_extraction"]["system"] # Use renamed key
 
         llm = get_llm_client(config)
 
@@ -148,13 +148,15 @@ def init_translation(state: TranslationState) -> TranslationState:
 def chunk_document(state: TranslationState) -> TranslationState:
     NODE_NAME = "chunk_document"
     update_progress(state, NODE_NAME, 10.0)
+    # Reverting to modify state directly and return full state
     state["chunks"] = [] # Reset/initialize
     state["translated_chunks"] = [] # Also reset translated chunks array
 
     if not state.get('original_content'):
         log_to_state(state, "Original content is empty, cannot chunk.", "ERROR", node=NODE_NAME)
+        # state["error_info"] = "Cannot chunk empty content." # REMOVED direct state modification
         state["error_info"] = "Cannot chunk empty content."
-        return state
+        return state # Return full state on error
 
     try:
         content = state["original_content"]
@@ -258,17 +260,21 @@ def chunk_document(state: TranslationState) -> TranslationState:
         state["chunks"] = [] # Ensure chunks list is empty on failure
         state["translated_chunks"] = []
 
-    return state
+    # Return only the modified keys
+    return state # Return the entire modified state
 
 
 def terminology_unification(state: TranslationState) -> TranslationState:
     NODE_NAME = "terminology_unification"
     update_progress(state, NODE_NAME, 5.0)
-    state["contextualized_glossary"] = []  # Initialize/reset
+    # This node will return the updated key, so no need to initialize here if relying on merge
+    # state["unified_terminology"] = []
+    update_dict = {} # Dictionary to hold updates
 
     if not state.get("original_content"):
         log_to_state(state, "Original content is empty, skipping terminology unification.", "WARNING", node=NODE_NAME)
-        return state
+        # Return empty update if skipping
+        return {}
 
     try:
         config = state.get("config", {})
@@ -330,7 +336,7 @@ def terminology_unification(state: TranslationState) -> TranslationState:
         with open(prompts_path) as f:
             prompts = yaml.safe_load(f)
 
-        prompt_text = prompts["prompts"]["unified_terminology_extraction"]["system"]
+        prompt_text = prompts["prompts"]["contextualized_glossary_extraction"]["system"] # Use renamed key
 
         llm = get_llm_client(config)
 
@@ -399,14 +405,13 @@ def terminology_unification(state: TranslationState) -> TranslationState:
         log_to_state(state, f"Preparing to assign terminology list. Type: {type(all_terms)}, Length: {len(all_terms)}", "DEBUG", node=NODE_NAME)
         # log_to_state(state, f"Full extracted terminology list: {all_terms}", "DEBUG", node=NODE_NAME)
         try:
-            state["contextualized_glossary"] = all_terms
+            update_dict["contextualized_glossary"] = all_terms # Prepare the update using the CORRECT key
             log_to_state(state, f"Unified terminology extraction complete. Total unique terms: {len(all_terms)}", "INFO", node=NODE_NAME)
         except Exception as assign_error:
-            log_to_state(state, f"Error assigning terminology list: {type(assign_error).__name__}: {assign_error}", "CRITICAL", node=NODE_NAME)
-            state["contextualized_glossary"] = []
-
+            log_to_state(state, f"Error preparing terminology list update: {type(assign_error).__name__}: {assign_error}", "CRITICAL", node=NODE_NAME)
+            update_dict["contextualized_glossary"] = [] # Ensure CORRECT key exists in update, even if empty on error
     except Exception:
         log_to_state(state, "Critical error in terminology_unification.", "CRITICAL", node=NODE_NAME)
-        state["contextualized_glossary"] = []
+        update_dict["contextualized_glossary"] = [] # Ensure CORRECT key exists in update, even if empty on error
 
-    return state
+    return update_dict # Return only the changes

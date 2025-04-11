@@ -13,7 +13,7 @@ try:
     from .state import TranslationState, TerminologyEntry
     from .providers import get_llm_client
     from .utils import log_to_state
-    from .node_utils import safe_json_parse
+    from .node_utils import safe_json_parse, filter_and_prioritize_terminology
     # Exceptions might be needed if error handling within workers is desired
     # from .exceptions import AuthenticationError, RateLimitError, APIError
 except ImportError: # Fallback for potential direct script execution (less ideal)
@@ -45,20 +45,31 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
          return {"index": index, "error": f"Worker input missing required fields: {', '.join(missing)}", "node_name": NODE_NAME}
 
     config = state_essentials.get("config", {})
-    terminology = state_essentials.get("terminology", [])
+    terminology = state_essentials.get("contextualized_glossary", []) # Use the CORRECT key
     worker_log_prefix = f"Chunk {index + 1}/{total_chunks}"
 
     try:
         llm = get_llm_client(config)
 
-        # Build terminology guidance
+        # --- Terminology Filtering ---
+        try:
+            terminology_json = json.dumps(terminology, indent=2)
+            # log_to_state(state_essentials, f"{worker_log_prefix}: Full 'contextualized_glossary' received ({len(terminology)} items):\n{terminology_json}", "DEBUG", node=NODE_NAME) # Disabled verbose log
+        except Exception as json_err:
+            log_to_state(state_essentials, f"{worker_log_prefix}: Could not serialize full terminology for logging: {json_err}", "WARNING", node=NODE_NAME)
+
+        # Note: Using the original (non-escaped) chunk_text for filtering
+        filtered_terminology = filter_and_prioritize_terminology(chunk_text, terminology)
+        # log_to_state(state_essentials, f"{worker_log_prefix}: Filtered terminology contains {len(filtered_terminology)} items.", "DEBUG", node=NODE_NAME)
+
+        # Build terminology guidance string from the filtered list
         term_guidance_list = []
-        for t in terminology:
-            translation = t.get('approvedTranslation') or t.get('proposedTranslations', {}).get('default')
+        for t in filtered_terminology:
+            translation = t.get('proposedTranslations', {}).get('default') # Use only proposed
             if t.get('sourceTerm') and translation:
                 term_guidance_list.append(f"- '{t['sourceTerm']}' -> '{translation}'")
 
-        term_guidance = "Terminology Glossary:\n" + "\n".join(term_guidance_list) if term_guidance_list else "No specific terminology provided."
+        term_guidance = "Terminology Glossary:\n" + "\n".join(term_guidance_list) if term_guidance_list else "No specific terminology provided for this chunk."
 
         prompts_path = Path(__file__).parent.parent / "prompts.yaml"
         with open(prompts_path) as f:
@@ -78,8 +89,11 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
             content_type=enhanced_content_type,
             source_language=config.get('source_language', 'english'),
             target_language=config.get('target_language', 'arabic'),
-            chunk_text=chunk_text_escaped
+            chunk_text=chunk_text_escaped,
+            filtered_term_guidance=term_guidance # Pass the filtered glossary
         )
+        # Log the actual prompt being sent (DEBUG level)
+        # log_to_state(state_essentials, f"{worker_log_prefix}: Sending translation prompt:\n---\n{translation_system_prompt}\n---", "DEBUG", node=NODE_NAME)
 
         translation_messages = [("system", translation_system_prompt)]
         translation_prompt_template = ChatPromptTemplate.from_messages(translation_messages)
@@ -142,11 +156,15 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
             hallucination_warning = f"{worker_log_prefix}: Failed to parse verification JSON response. Raw: '{verification_response_str[:100]}...'"
             log_to_state(state_essentials, hallucination_warning, "WARNING", node=NODE_NAME)
 
+        # Add chunk size and filtered term count to the result
         return {
             "index": index,
             "translated_text": translated_text,
             "node_name": NODE_NAME,
-            "hallucination_warning": hallucination_warning
+            "hallucination_warning": hallucination_warning,
+            "chunk_size": len(chunk_text), # Add original chunk size
+            "filtered_term_count": len(filtered_terminology), # Add filtered term count
+            "prompt_char_count": len(translation_system_prompt) # Add prompt character count
         }
 
     except FileNotFoundError:
@@ -193,7 +211,7 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
 
     config = state_essentials.get("config", {})
     # Fetch glossary (prefer contextualized if available)
-    glossary = state_essentials.get("contextualized_glossary", state_essentials.get("glossary", {}))
+    full_glossary = state_essentials.get("contextualized_glossary", []) # Get the full list
     worker_log_prefix = f"Critique Chunk {index + 1}/{total_chunks}"
 
     try:
@@ -210,12 +228,35 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         prompt_template = ChatPromptTemplate.from_messages(messages)
         chain = prompt_template | llm | StrOutputParser() # Expecting JSON string
 
-        response = chain.invoke({
-            # Pass the expected variables based on the error log
-            "glossary": json.dumps(glossary) if glossary else "No glossary provided.", # Pass glossary as JSON string or placeholder
+        # --- Filter glossary based on original chunk ---
+        filtered_glossary = filter_and_prioritize_terminology(original_chunk, full_glossary)
+        log_to_state(state_essentials, f"{worker_log_prefix}: Filtered critique glossary contains {len(filtered_glossary)} items.", "DEBUG", node=NODE_NAME)
+
+        # Build guidance string for the prompt
+        critique_term_list = []
+        for t in filtered_glossary:
+            translation = t.get('proposedTranslations', {}).get('default') # Use only proposed
+            if t.get('sourceTerm') and translation:
+                critique_term_list.append(f"- '{t['sourceTerm']}' -> '{translation}'")
+        critique_term_guidance = "\n".join(critique_term_list) if critique_term_list else "No specific terminology provided for this chunk."
+
+        critique_context = {
+            "filtered_glossary_guidance": critique_term_guidance, # Pass filtered guidance
             "original_text": original_chunk,
             "translated_text": translated_chunk
-        })
+        }
+
+        response = chain.invoke(critique_context)
+
+        # Log the formatted prompt AFTER invoking
+        try:
+            # Format the prompt using the context that was actually sent
+            formatted_critique_prompt = prompts["prompts"]["critique"]["system"].format(**critique_context)
+            log_to_state(state_essentials, f"{worker_log_prefix}: Critique prompt sent (using filtered glossary):\n---\n{formatted_critique_prompt}\n---", "DEBUG", node=NODE_NAME)
+        except KeyError as fmt_err:
+             log_to_state(state_essentials, f"{worker_log_prefix}: Error formatting critique prompt for logging: Missing key {fmt_err}", "WARNING", node=NODE_NAME)
+        except Exception as log_err:
+             log_to_state(state_essentials, f"{worker_log_prefix}: Error formatting critique prompt for logging: {log_err}", "WARNING", node=NODE_NAME)
 
         metadata = getattr(response, 'response_metadata', {})
 
@@ -271,6 +312,7 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         return {"index": index, "error": f"Finalize worker input missing: {', '.join(missing)}", "node_name": NODE_NAME}
 
     config = state_essentials.get("config", {})
+    full_glossary = state_essentials.get("contextualized_glossary", []) # Get full glossary
     worker_log_prefix = f"Finalize Chunk {index + 1}/{total_chunks}"
 
     try:
@@ -288,16 +330,39 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         prompt_template = ChatPromptTemplate.from_messages(messages)
         chain = prompt_template | llm | StrOutputParser() # Expecting refined text
 
-        response = chain.invoke({
+        # --- Filter glossary based on original chunk ---
+        filtered_glossary = filter_and_prioritize_terminology(original_chunk, full_glossary)
+        log_to_state(state_essentials, f"{worker_log_prefix}: Filtered finalization glossary contains {len(filtered_glossary)} items.", "DEBUG", node=NODE_NAME)
+
+        # Build guidance string for the prompt
+        final_term_list = []
+        for t in filtered_glossary:
+            translation = t.get('proposedTranslations', {}).get('default') # Use only proposed
+            if t.get('sourceTerm') and translation:
+                final_term_list.append(f"- '{t['sourceTerm']}' -> '{translation}'")
+        final_term_guidance = "\n".join(final_term_list) if final_term_list else "No specific terminology provided for this chunk."
+
+        finalize_context = {
             "source_language": config.get("source_language", "english"),
             "target_language": config.get("target_language", "arabic"),
             "original_text": original_chunk,
-            "initial_translation": translated_chunk,
-            "critique_feedback": json.dumps(critique, indent=2), # Pass critique as JSON string
-            # Add missing variable expected by the 'final_translation' prompt
-            "basic_translation": translated_chunk,
-            "glossary": json.dumps(state_essentials.get("contextualized_glossary", state_essentials.get("glossary", {}))) # Pass glossary
-        })
+            "initial_translation": translated_chunk, # Keep initial translation context
+            "critique_feedback": json.dumps(critique, indent=2),
+            "basic_translation": translated_chunk, # Keep basic translation context (might be redundant)
+            "filtered_glossary_guidance": final_term_guidance # Pass filtered guidance
+        }
+
+        response = chain.invoke(finalize_context)
+
+        # Log the formatted prompt AFTER invoking
+        try:
+            # Format the prompt using the context that was actually sent
+            formatted_finalize_prompt = prompts["prompts"]["final_translation"]["system"].format(**finalize_context)
+            log_to_state(state_essentials, f"{worker_log_prefix}: Finalize prompt sent (using filtered glossary):\n---\n{formatted_finalize_prompt}\n---", "DEBUG", node=NODE_NAME)
+        except KeyError as fmt_err:
+             log_to_state(state_essentials, f"{worker_log_prefix}: Error formatting finalize prompt for logging: Missing key {fmt_err}", "WARNING", node=NODE_NAME)
+        except Exception as log_err:
+             log_to_state(state_essentials, f"{worker_log_prefix}: Error formatting finalize prompt for logging: {log_err}", "WARNING", node=NODE_NAME)
 
         metadata = getattr(response, 'response_metadata', {})
 
@@ -306,10 +371,13 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(refined_text, str) or not refined_text.strip():
              return {"index": index, "error": f"{worker_log_prefix}: Received empty or non-string refined translation.", "node_name": NODE_NAME}
 
+        # Add relevant counts to the result
         return {
             "index": index,
             "refined_text": refined_text,
-            "node_name": NODE_NAME
+            "node_name": NODE_NAME,
+            "prompt_char_count": len(formatted_finalize_prompt) if 'formatted_finalize_prompt' in locals() else 0, # Add prompt char count
+            "filtered_term_count": len(filtered_glossary) # Add filtered term count
         }
 
     except FileNotFoundError:

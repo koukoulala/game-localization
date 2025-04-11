@@ -66,7 +66,8 @@ def critique_node(state: TranslationState) -> TranslationState:
     for i in valid_indices:
         state_essentials = {
             "config": config,
-            "job_id": state.get("job_id")
+            "job_id": state.get("job_id"),
+            "contextualized_glossary": state.get("contextualized_glossary", []) # Add glossary here
         }
         worker_inputs.append({
             "state": state_essentials,
@@ -168,7 +169,8 @@ def final_translation_node(state: TranslationState) -> TranslationState:
     for i in indices_to_refine:
         state_essentials = {
             "config": config,
-            "job_id": state.get("job_id")
+            "job_id": state.get("job_id"),
+            "contextualized_glossary": state.get("contextualized_glossary", []) # Add glossary here
         }
         worker_inputs.append({
             "state": state_essentials,
@@ -199,7 +201,10 @@ def final_translation_node(state: TranslationState) -> TranslationState:
                     # Keep the original translation in final_chunks[index]
                 elif "refined_text" in result:
                     state["final_chunks"][index] = result["refined_text"] # Update with refined text
-                    log_to_state(state, f"Successfully refined chunk {index + 1}.", "DEBUG", node=NODE_NAME)
+                    # Extract additional info from result for logging
+                    prompt_chars = result.get("prompt_char_count", "N/A")
+                    term_count = result.get("filtered_term_count", "N/A")
+                    log_to_state(state, f"Successfully refined chunk {index + 1} (Terms: {term_count}, Prompt Chars: {prompt_chars}).", "DEBUG", node=NODE_NAME)
                 else:
                     log_to_state(state, f"Refinement worker for chunk {index + 1} returned unexpected result: {result}", "WARNING", node=NODE_NAME)
 

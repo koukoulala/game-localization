@@ -118,7 +118,7 @@ streamlit run translate_over_api_frontend_streamlit.py
 ---
 ## 🖼️ Streamlit App Preview
 
-![Streamlit UI](Docs/streamlit.jpg)
+![Streamlit UI](docs/streamlit.jpg)
 
 ---
 ##  BASH Script Client

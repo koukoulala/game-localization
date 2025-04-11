@@ -22,7 +22,8 @@ prompts:
       - Translate the text content accurately according to context and terminology
       - Maintain the same paragraph structure as the original
       - Use appropriate technical terminology for {content_type}
-      - Follow the provided terminology glossary exactly
+      - Follow the provided terminology glossary exactly:
+      {filtered_term_guidance}
       
       OUTPUT FORMAT:
       - Return ONLY the explained text with preserved markdown
@@ -61,8 +62,8 @@ prompts:
       {translated_text}
       ```
 
-      CONTEXTUALIZED GLOSSARY:
-      {glossary}
+      FILTERED GLOSSARY FOR THIS CHUNK:
+      {filtered_glossary_guidance}
 
   final_translation:
     system: |
@@ -89,8 +90,8 @@ prompts:
       CRITIQUE FEEDBACK:
       {critique_feedback}
 
-      GLOSSARY:
-      {glossary}
+      FILTERED GLOSSARY FOR THIS CHUNK:
+      {filtered_glossary_guidance}
 
   translation_verification:
     system: |
@@ -122,7 +123,7 @@ prompts:
       TEXT TO VALIDATE:
       ```
       {translated_text}
-  unified_terminology_extraction:
+  contextualized_glossary_extraction:
     system: |
       You are a terminology extraction specialist for {content_type} content. Extract technical terms, domain-specific language, and important concepts from the provided text ({source_language}).
       For each term, provide a proposed translation into {target_language}.
