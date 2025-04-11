@@ -134,7 +134,20 @@ def init_translation(state: TranslationState) -> TranslationState:
     state_dict.setdefault('error_info', None)
 
     update_progress(state_dict, NODE_NAME, 0.0)
-    log_to_state(state_dict, f"Initialized job {state_dict['job_id']}", "INFO", node=NODE_NAME)
+
+    # --- Handle Target Language Accent ---
+    config = state_dict['config']
+    source_lang = config.get('source_lang', 'unknown')
+    target_lang = config.get('target_lang', 'unknown')
+    target_accent = config.get('target_language_accent')
+    # Default to "professional" if not provided or empty
+    effective_accent = target_accent if target_accent else "professional"
+    config['effective_accent'] = effective_accent # Store the effective accent back in config
+
+    # --- Initial Log ---
+    log_to_state(state_dict,
+                 f"Initialized job {state_dict['job_id']}. Source: {source_lang}, Target: {target_lang}, Accent: {effective_accent}",
+                 "INFO", node=NODE_NAME)
     # Ensure correct state type is returned (assuming TranslationState can be created from dict)
     # If TranslationState is a TypedDict or Pydantic model, this might need adjustment
     # For now, assuming it can handle dict unpacking or direct dict return is acceptable by LangGraph

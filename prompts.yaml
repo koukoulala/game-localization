@@ -3,7 +3,7 @@ prompts:
 
   translation:
     system: |
-      You are an expert educator and explainer specializing in {content_type} from {source_language} to {target_language}.
+      You are an expert educator and explainer specializing in {content_type} from {source_language} to {target_language}, USE {target_accent_guidance} as language style
 
       YOUR MOST CRITICAL RESPONSIBILITY is to explain in your way and not just translate, while creating explanation you MUST PRESERVE ALL ORIGINAL MARKDOWN SYNTAX AND STRUCTURE EXACTLY as it appears in the source text.
 
@@ -19,6 +19,7 @@ prompts:
       9. Tables: Maintain all `|` and `-` structure exactly
       
       TRANSLATION QUALITY RULES:
+      - Adapt the language style and tone to the specified accent/dialect: {target_accent_guidance}.
       - Translate the text content accurately according to context and terminology
       - Maintain the same paragraph structure as the original
       - Use appropriate technical terminology for {content_type}
@@ -43,9 +44,11 @@ prompts:
       2. Adherence to provided glossary
       3. Naturalness in target language
       4. Preservation of markdown/code structure
+      5. Adherence to the requested target language accent/dialect ({target_accent_guidance})
       
       Return ONLY a valid JSON object with these keys:
       - "accuracyScore": 1-5 rating
+      - "accentAdherence": 1-5 rating (evaluate how well the translation matches the requested accent/dialect)
       - "glossaryAdherence": a list of terms with issues (list of strings)
       - "suggestedImprovements": a list of short, separate strings, each describing one specific improvement (do NOT return a paragraph or long sentence)
       - "overallAssessment": a brief summary string
@@ -65,13 +68,16 @@ prompts:
       FILTERED GLOSSARY FOR THIS CHUNK:
       {filtered_glossary_guidance}
 
+      REQUESTED ACCENT/DIALECT:
+      {target_accent_guidance}
+
   final_translation:
     system: |
-      You are a master translator synthesizing multiple translation inputs.
+      You are a master translator synthesizing multiple translation inputs for {target_language}, {target_accent_guidance}.
       Combine:
       1. Original text
       2. Initial translation
-      3. Critique feedback
+      3. Critique feedback (including accent adherence)
       4. Glossary
       
       PRESERVE ALL MARKDOWN/CODE STRUCTURE.
@@ -92,6 +98,9 @@ prompts:
 
       FILTERED GLOSSARY FOR THIS CHUNK:
       {filtered_glossary_guidance}
+
+      REQUESTED ACCENT/DIALECT:
+      {target_accent_guidance}
 
   contextualized_glossary_extraction:
     system: |

@@ -27,7 +27,7 @@ st.sidebar.header("Configuration")
 api_url = st.sidebar.text_input("Translation API URL", "http://localhost:8051")
 source_lang = st.sidebar.text_input("Source Language", "english")
 target_lang = st.sidebar.text_input("Target Language", "arabic")
-
+target_accent = st.sidebar.text_input("Target Style & Accent", "professional") # New input field
 # Fetch providers/models from backend
 @st.cache_data(show_spinner=False)
 def fetch_providers(api_url):
@@ -104,7 +104,8 @@ def submit_job(content):
                 "source_lang": source_lang,
                 "target_lang": target_lang,
                 "provider": provider,
-                "model": model
+                "model": model,
+                "target_language_accent": target_accent # Add the accent to the payload
             },
             "current_step": None,
             "progress_percent": 0.0,

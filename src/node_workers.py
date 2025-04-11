@@ -85,12 +85,17 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         if has_images and "image" not in enhanced_content_type.lower():
             enhanced_content_type += " with images"
 
+        # --- Accent Guidance ---
+        effective_accent = config.get('effective_accent', 'professional') # Get from config (defaulted in init)
+        target_accent_guidance = f"using the {effective_accent} accent/dialect"
+
         translation_system_prompt = prompts["prompts"]["translation"]["system"].format(
             content_type=enhanced_content_type,
             source_language=config.get('source_language', 'english'),
             target_language=config.get('target_language', 'arabic'),
             chunk_text=chunk_text_escaped,
-            filtered_term_guidance=term_guidance # Pass the filtered glossary
+            filtered_term_guidance=term_guidance, # Pass the filtered glossary
+            target_accent_guidance=target_accent_guidance # Pass the accent guidance
         )
         # Log the actual prompt being sent (DEBUG level)
         # log_to_state(state_essentials, f"{worker_log_prefix}: Sending translation prompt:\n---\n{translation_system_prompt}\n---", "DEBUG", node=NODE_NAME)
@@ -184,10 +189,15 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
                 critique_term_list.append(f"- '{t['sourceTerm']}' -> '{translation}'")
         critique_term_guidance = "\n".join(critique_term_list) if critique_term_list else "No specific terminology provided for this chunk."
 
+        # --- Accent Guidance ---
+        effective_accent = config.get('effective_accent', 'professional')
+        target_accent_guidance = f"using the {effective_accent} accent/dialect"
+
         critique_context = {
             "filtered_glossary_guidance": critique_term_guidance, # Pass filtered guidance
             "original_text": original_chunk,
-            "translated_text": translated_chunk
+            "translated_text": translated_chunk,
+            "target_accent_guidance": target_accent_guidance # Pass the accent guidance
         }
 
         response = chain.invoke(critique_context)
@@ -286,6 +296,10 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
                 final_term_list.append(f"- '{t['sourceTerm']}' -> '{translation}'")
         final_term_guidance = "\n".join(final_term_list) if final_term_list else "No specific terminology provided for this chunk."
 
+        # --- Accent Guidance ---
+        effective_accent = config.get('effective_accent', 'professional')
+        target_accent_guidance = f"using the {effective_accent} accent/dialect"
+
         finalize_context = {
             "source_language": config.get("source_language", "english"),
             "target_language": config.get("target_language", "arabic"),
@@ -293,7 +307,8 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
             "initial_translation": translated_chunk, # Keep initial translation context
             "critique_feedback": json.dumps(critique, indent=2),
             "basic_translation": translated_chunk, # Keep basic translation context (might be redundant)
-            "filtered_glossary_guidance": final_term_guidance # Pass filtered guidance
+            "filtered_glossary_guidance": final_term_guidance, # Pass filtered guidance
+            "target_accent_guidance": target_accent_guidance # Pass the accent guidance
         }
 
         response = chain.invoke(finalize_context)

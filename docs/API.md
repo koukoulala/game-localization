@@ -23,6 +23,7 @@ The request body requires two main keys: `input` and `config`.
   - `target_lang` (string, **required**): Target language (e.g., `"arabic"`).
   - `provider` (string, **required**): LLM provider (e.g., `"openai"`, `"ollama"`).
   - `model` (string, **required**): Specific model name (e.g., `"gpt-4o"`, `"llama3"`).
+  - `target_language_accent` (string, optional, default: `"professional"`): Specifies the desired accent or dialect for the target language (e.g., `"Egyptian Arabic"`, `"British English"`, `"Standard Arabic"`). Influences translation style and critique.
   - *(Optional)* Other provider/model specific configs.
 - `current_step` (string | null, optional)
 - `progress_percent` (float | null, optional)

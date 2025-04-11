@@ -10,6 +10,7 @@ DEFAULT_SOURCE_LANG="english"
 DEFAULT_TARGET_LANG="arabic"
 DEFAULT_PROVIDER="openai" # Default provider
 DEFAULT_API_URL="http://localhost:8051" # Default API server URL
+DEFAULT_TARGET_ACCENT="professional" # Default accent
 
 # Default models per provider (matching backend defaults)
 declare -A DEFAULT_MODELS=(
@@ -49,6 +50,7 @@ function show_usage {
   echo -e "  -p, --provider NAME    LLM provider (default: ${DEFAULT_PROVIDER})"
   echo -e "  -m, --model NAME       LLM model (default depends on provider)"
   echo -e "  -u, --url URL          API server base URL (default: ${DEFAULT_API_URL})"
+  echo -e "  -a, --accent ACCENT    Target language style/accent (default: ${DEFAULT_TARGET_ACCENT})"
   echo -e "  -l, --list-models      List all available providers and models from backend"
   echo -e "  -h, --help             Show this help message and exit"
   echo -e ""
@@ -91,10 +93,11 @@ MODEL=""
 API_URL="${DEFAULT_API_URL}"
 INPUT_FILE_PATH=""
 OUTPUT_FILE_PATH="" # Optional output path
+TARGET_ACCENT="${DEFAULT_TARGET_ACCENT}" # Initialize accent variable
 LIST_MODELS_ONLY=0
 
 # Use getopt for robust option parsing
-TEMP=$(getopt -o hi:o:s:t:p:m:u:l --long help,input:,output:,source:,target:,provider:,model:,url:,list-models -n "$(basename "$0")" -- "$@")
+TEMP=$(getopt -o hi:o:s:t:p:m:u:a:l --long help,input:,output:,source:,target:,provider:,model:,url:,accent:,list-models -n "$(basename "$0")" -- "$@")
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
 
 # Note the quotes around "$TEMP": they are essential!
@@ -110,6 +113,7 @@ while true; do
     '-p'|'--provider') PROVIDER="$2"; shift 2 ;;
     '-m'|'--model') MODEL="$2"; shift 2 ;;
     '-u'|'--url') API_URL="$2"; shift 2 ;;
+    '-a'|'--accent') TARGET_ACCENT="$2"; shift 2 ;;
     '-l'|'--list-models') LIST_MODELS_ONLY=1; shift ;;
     '-h'|'--help') show_usage ;;
     '--') shift; break ;;
@@ -190,6 +194,7 @@ JSON_PAYLOAD=$(jq -n \
   --arg tgt_lang "$TARGET_LANG" \
   --arg provider "$PROVIDER" \
   --arg model "$MODEL" \
+  --arg accent "$TARGET_ACCENT" \
 '{
   "input": {
     "job_id": $job_id,
@@ -198,7 +203,8 @@ JSON_PAYLOAD=$(jq -n \
       "source_lang": $src_lang,
       "target_lang": $tgt_lang,
       "provider": $provider,
-      "model": $model
+      "model": $model,
+      "target_language_accent": $accent
     },
     "current_step": null,
     "progress_percent": 0.0,
