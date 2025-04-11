@@ -19,9 +19,7 @@ class Metrics(TypedDict):
 
 class TerminologyEntry(TypedDict):
     sourceTerm: str
-    context: Optional[str]
     proposedTranslations: Dict[str, str]
-    variants: Optional[List[str]]
 
 # Define the state structure
 class TranslationState(TypedDict):

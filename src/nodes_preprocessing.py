@@ -81,14 +81,8 @@ def terminology_extraction_worker(worker_input: Dict[str, Any]) -> Dict[str, Any
 
                 entry = TerminologyEntry(
                     sourceTerm=source_term,
-                    context=term_data.get("context", ""),
-                    proposedTranslations=translations,
-                    variants=term_data.get("variants", [])
+                    proposedTranslations=translations
                 )
-
-                # Ensure variants is a list of strings
-                if not isinstance(entry["variants"], list) or not all(isinstance(v, str) for v in entry["variants"]):
-                    entry["variants"] = []
 
                 terms.append(entry)
 
