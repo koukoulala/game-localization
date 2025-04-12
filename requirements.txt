@@ -1,0 +1,16 @@
+langchain
+langgraph
+langchain-openai
+langchain-anthropic
+langchain-google-genai
+langchain-community
+tiktoken
+python-dotenv
+markdown-it-py
+pydantic
+langserve[server]
+sse-starlette
+aiosqlite
+uv
+streamlit
+langchain-mistralai

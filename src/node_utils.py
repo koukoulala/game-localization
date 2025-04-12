@@ -14,8 +14,8 @@ except ImportError: # Fallback for potential direct script execution (less ideal
 
 def safe_json_parse(json_string: str, state: TranslationState, node_name: str) -> Optional[Any]:
     """
-    Tries to parse JSON, handling common LLM artifacts (like markdown fences)
-    and logging errors to the state object.
+    Attempts to robustly parse a JSON string, handling common LLM artifacts
+    (like markdown code fences) and logging errors to the state object.
 
     Args:
         json_string: The string potentially containing JSON.
@@ -25,14 +25,49 @@ def safe_json_parse(json_string: str, state: TranslationState, node_name: str) -
     Returns:
         The parsed JSON object (list or dict) or None if parsing fails.
     """
+
+
+    # 1. Validate input type
     if not isinstance(json_string, str):
         log_to_state(state, "Input to safe_json_parse was not a string.", "ERROR", node=node_name)
         return None
+
+    # 2. Remove markdown code fences (```json, ```) and leading/trailing whitespace
+    cleaned = json_string.strip()
+    # Remove all leading/trailing code fences, even if repeated or with whitespace
+    cleaned = re.sub(r"^(```\s*json|```)+", "", cleaned, flags=re.IGNORECASE).strip()
+    cleaned = re.sub(r"(```)+\s*$", "", cleaned).strip()
+
+    # 3. Check for valid JSON start
+    if not cleaned:
+        log_to_state(state, "safe_json_parse: Cleaned string is empty after removing code fences.", "ERROR", node=node_name)
+        return None
+    if not (cleaned.startswith("{") or cleaned.startswith("[")):
+        preview = cleaned[:100].replace("\n", "\\n")
+        log_to_state(state, f"safe_json_parse: JSON start marker '[' or '{{' not found. Preview: {preview!r}", "ERROR", node=node_name)
+        return None
+
+    # 4. Attempt to parse JSON
     try:
-        # Remove potential markdown code fences and leading/trailing whitespace
-        cleaned_string = json_string.strip()
-        if cleaned_string.startswith("```json"):
-            cleaned_string = cleaned_string[len("```json"):].strip()
+        parsed = json.loads(cleaned)
+        return parsed
+    except json.JSONDecodeError as e:
+        preview = cleaned[:200].replace("\n", "\\n")
+        log_to_state(
+            state,
+            f"safe_json_parse: JSONDecodeError: {e}. Preview: {preview!r}",
+            "ERROR",
+            node=node_name
+        )
+        return None
+    except Exception as e:
+        log_to_state(
+            state,
+            f"safe_json_parse: Unexpected error: {type(e).__name__}: {e}",
+            "ERROR",
+            node=node_name
+        )
+        return None
         if cleaned_string.startswith("```"):
              cleaned_string = cleaned_string[len("```"):].strip()
         if cleaned_string.endswith("```"):

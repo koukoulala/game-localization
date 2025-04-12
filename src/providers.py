@@ -40,8 +40,8 @@ PROVIDER_DEFAULTS = {
     "openrouter": {"model": "google/gemini-2.5-pro-preview-03-25", "base_url": "https://openrouter.ai/api/v1"},
     "mistral": {"model": "mistral-large-2402", "base_url": "https://api.mistral.ai/v1"}, # Uses internal default endpoint
     "deepseek": {"model": "deepseek-chat", "base_url": "https://api.deepseek.com/v1"},
-    "ollama": {"model": "llama3", "base_url": "http://localhost:11434"},
-    "localai": {"model": "gpt-3.5-turbo", "base_url": "http://localhost:8083/v1"},
+    "ollama": {"model": "llama3", "base_url": "http://host.docker.internal:11434"},
+    "localai": {"model": "gpt-3.5-turbo", "base_url": "http://host.docker.internal:8083/v1"},
 }
 
 # --- Helper Functions ---

@@ -1,0 +1,34 @@
+/* Custom CSS for Turjuman Frontend */
+
+/*
+Tailwind CSS is handling most styles.
+This file can be used for:
+1. Custom component styles not easily achievable with utility classes.
+2. Overrides for Tailwind defaults if necessary.
+3. More complex theme definitions, potentially using @apply with Tailwind classes.
+*/
+
+/* Example: Add specific styles for the yellow theme if needed */
+/*
+.theme-yellow .some-component {
+    @apply border-yellow-600;
+    font-family: 'Courier New', Courier, monospace;
+}
+*/
+
+/* Ensure body takes full height if needed for layout */
+/*
+html, body {
+    height: 100%;
+}
+*/
+
+/* Add any global styles here */
+
+
+/* Active tab style using theme variables */
+.tab.active {
+    border-bottom-color: var(--link-color);
+    color: var(--text-primary);
+    font-weight: 600;
+}

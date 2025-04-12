@@ -54,7 +54,72 @@ flowchart TD
 
 ---
 
-## 🛠️ Setup & Installation
+## 🛠️ Setup & Installation using Docker (Recommended)
+
+**Recommended LLM Models**
+- **Online**: Gemini Flash/Pro
+- **Local**: Gemma3 / Aya / Mistral 
+
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) installed on your system.
+- **API Keys**: Get your API keys for OpenAI, Anthropic, Gemini ..etc to provide access to advanced LLM
+- **Ollama**: You can use Turjuman locally without paying for LLM by installing Ollama or any Local Inference server like LMstudio, vLLM, LLamaCPP ..etc, take alook at sample.env for details
+
+
+## Prepare Environment Variables
+
+copy `sample.env.file` to `.env` and modify the prefered LLM and keys
+
+### Building the Docker Image
+
+1. Open a terminal and navigate to the project root directory (where the `Dockerfile` is located).
+2. Build the Docker image with the following command:
+
+   ```bash
+   docker build -t turjuman-book-translator .
+   ```
+
+   This command will create a Docker image named `turjuman-book-translator`.
+
+### Basic Run with web UI (include streaming)
+
+To run the app on the default bridge network, map port 8051:8051, If you use Ollama or self-hosted LLM then you must use the option **--add-host** to enable all self hosting LLM
+
+```bash
+docker run --rm -it \
+   -v "$(pwd):/app/" \
+  --network bridge \
+  -p 8051:8051 \
+  --env-file sample.env.file \
+  --add-host host.docker.internal:host-gateway \
+  turjuman-book-translator
+```
+
+- `--network bridge` (optional) specifies the default Docker bridge network.
+- `-p 8051:8051` maps port 8051 of the container to port 8051 on your host.
+- `--add-host host.docker.internal:host-gateway` allows the container to access services running on the host (ollama or local ai service) using the name `host.docker.internal`.
+
+The application will now be accessible at [http://localhost:8051](http://localhost:8051).
+
+---
+## 🚀 Using Turjuman via integrated web UI 
+
+visit [http://localhost:8051](http://localhost:8051)
+- select file to translate
+- modify the source and target language 
+- modify the "Accent and style" if needed (this option can make translation more funny, spicy or professional by default)
+- start translation, after few seconds both logs, text chunks will update dynamically
+- after translation progress reach 100% you can view or download the final MarkDown file 
+- you can change the theme from top drop menue (7 themes available) 
+- you can switch the view between chunk or full document to review the translated content chunk by chunk 
+
+![Integarted Web UI](docs/ui_1.png)
+![Chunk view](docs/ui_chunks.png)
+![Theme](docs/ui_themes.png)
+
+## 🛠️ Setup & Installation using conda or venv (for development)
 
 1. **Prerequisites**
 
@@ -62,11 +127,8 @@ flowchart TD
 - **API Keys**: Get your API keys for OpenAI, Anthropic, etc.
 - **Ollama**: You can use Turjuman locally without paying for LLM by installing Ollama or any Local Inference server like LMstudio, vLLM, LLamaCPP ..etc, take alook at sample.env for details
 
-**Recommended Models**
-- **Online**: Gemini Flash/Pro
-- **Local**: Gemma3 / Aya / Mistral 
 
-1. **Clone the Repository**
+2. **Clone the Repository**
 
 ```bash
 git clone <your-repo-url>
@@ -116,7 +178,7 @@ streamlit run translate_over_api_frontend_streamlit.py
 5. **Download**: Get your translated book or the full JSON response
 
 ---
-## 🖼️ Streamlit App Preview
+## 🖼️ Streamlit App Preview (old UI)
 
 ![Streamlit UI](docs/streamlit.jpg)
 

@@ -260,7 +260,14 @@ def assemble_document(state: TranslationState) -> TranslationState:
     log_to_state(state, f"Final document assembled successfully ({len(final_document)} characters).", "INFO", node=NODE_NAME)
 
     # Final updates
-    state["metrics"]["end_time"] = time.time()
+    log_to_state(state, f"Metrics before setting end_time: {state.get('metrics')}", "DEBUG", node=NODE_NAME)
+    if isinstance(state.get("metrics"), dict):
+        state["metrics"]["end_time"] = time.time()
+    else:
+        log_to_state(state, f"Metrics field is not a dict or is None: {type(state.get('metrics'))}. Skipping end_time.", "ERROR", node=NODE_NAME)
+        # Optionally initialize metrics here if it should always exist
+        if state.get("metrics") is None:
+             state["metrics"] = {"start_time": None, "end_time": time.time()} # Initialize with current time
     start_time = state["metrics"].get("start_time")
     if start_time:
          duration = state["metrics"]["end_time"] - start_time
