@@ -3,6 +3,7 @@
 from dotenv import load_dotenv
 import os
 import logging
+import time
 from datetime import datetime
 load_dotenv() # Load environment variables from .env file
 
@@ -30,8 +31,8 @@ logger.info(f"Server started, logging to {log_file}")
 from .providers import list_available_providers
 list_available_providers()  # Print available providers/models at startup
 
-from fastapi import FastAPI, Request, Depends, Query
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, Request, Depends, Query, BackgroundTasks
+from fastapi.responses import StreamingResponse, JSONResponse, Response
 import json
 import asyncio
 import threading
@@ -45,6 +46,15 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from langserve import add_routes
 from langchain_core.callbacks import BaseCallbackHandler
+
+# Import database and worker modules
+from .database import init_db
+from .job_queue import JobQueue
+from .worker import TranslationWorker
+
+# Initialize job queue and worker
+job_queue = JobQueue()
+worker = TranslationWorker()
 
 
 try:
@@ -61,6 +71,34 @@ app = FastAPI(
     version="1.0",
     description="API Server for the LangGraph-based Document Translation Workflow. Provides endpoints to manage and track translation jobs.",
 )
+
+# --- Initialize database and start worker on startup ---
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database and start worker on startup."""
+    await init_db()
+    
+    # Load environment variables from database
+    from .database import load_env_variables_to_os, sync_env_file_with_db, get_default_llm_config
+    
+    # First sync .env file with database (for first run)
+    await sync_env_file_with_db()
+    
+    # Then load variables from database to os.environ
+    await load_env_variables_to_os()
+    
+    # Start worker in background
+    asyncio.create_task(worker.start())
+    
+    # Log default LLM config if available
+    default_config = await get_default_llm_config()
+    if default_config:
+        logger.info(f"Default LLM configuration loaded: {default_config['provider']} - {default_config['model']}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Stop worker on shutdown."""
+    await worker.stop()
 
 # --- Mount Frontend Static Files ---
 # Assumes frontend files are in ../frontend relative to this file (src/server.py)
@@ -116,12 +154,144 @@ add_routes(
 #     # Basic HTML form to kick off a job (replace with real frontend logic)
 #     return templates.TemplateResponse("index.html", {"request": request})
 
+# --- Job Management Routes ---
+@app.post("/jobs", tags=["Jobs"])
+async def create_job(request: Request):
+    """Create a new translation job."""
+    data = await request.json()
+    job_id = await job_queue.enqueue_job(data)
+    return {"job_id": job_id, "status": "pending"}
 
-# --- Optional: Add Custom Routes ---
-# Example: A custom endpoint to list active/recent jobs (would require storing job info beyond checkpointer)
-# @app.get("/jobs", tags=["Jobs"])
-# async def list_jobs():
-#     # Placeholder: Needs logic to query active threads from checkpointer or separate DB
+@app.get("/jobs", tags=["Jobs"])
+async def list_jobs(limit: int = 100, offset: int = 0):
+    """List all translation jobs."""
+    jobs = await job_queue.list_jobs(limit, offset)
+    return {"jobs": jobs}
+
+@app.get("/jobs/{job_id}", tags=["Jobs"])
+async def get_job(job_id: str):
+    """Get details for a specific job."""
+    job_details = await job_queue.get_job_details(job_id)
+    if "error" in job_details:
+        return JSONResponse(status_code=404, content=job_details)
+    return job_details
+
+@app.get("/jobs/{job_id}/download", tags=["Jobs"])
+async def download_job(job_id: str):
+    """Download the final translation for a job."""
+    from .database import get_job
+    job = await get_job(job_id)
+    
+    if not job or not job.get("final_document"):
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Job not found or translation not completed"}
+        )
+    
+    final_document = job.get("final_document")
+    source_lang = job.get("source_lang")
+    target_lang = job.get("target_lang")
+    
+    # Use the stored filename if available, otherwise create a default one
+    if job.get("filename"):
+        filename = f"{job['filename']}.txt"
+    else:
+        filename = f"translation_{source_lang}_to_{target_lang}_{job_id}.txt"
+    
+    # Return as downloadable file
+    return Response(
+        content=final_document,
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.delete("/jobs/{job_id}", tags=["Jobs"])
+async def delete_job_endpoint(job_id: str):
+    """Delete a job and all related data."""
+    from .database import delete_job, get_job
+    
+    # Check if job exists
+    job = await get_job(job_id)
+    if not job:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": f"Job {job_id} not found"}
+        )
+    
+    # Delete the job
+    success = await delete_job(job_id)
+    if success:
+        return JSONResponse(
+            status_code=200,
+            content={"detail": f"Job {job_id} deleted successfully"}
+        )
+    else:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Failed to delete job {job_id}"}
+        )
+
+@app.get("/jobs/{job_id}/stream", tags=["Jobs"])
+async def stream_job_updates(job_id: str):
+    """Stream updates for a specific job."""
+    async def event_generator():
+        from .database import get_job, get_logs, get_chunks, get_glossary, get_critiques, get_metrics
+        
+        last_update_time = 0
+        
+        while True:
+            job = await get_job(job_id)
+            
+            if not job:
+                yield f"data: {json.dumps({'error': 'Job not found'})}\n\n"
+                break
+            
+            job_dict = dict(job)
+            
+            # Get current time
+            current_time = time.time()
+            
+            # Always send updates at least every second
+            if current_time - last_update_time >= 1:
+                last_update_time = current_time
+                
+                # Get recent logs
+                logs = await get_logs(job_id, limit=20)
+                job_dict["recent_logs"] = logs
+                
+                # Get chunks if available
+                chunks = await get_chunks(job_id)
+                if chunks:
+                    job_dict["chunks"] = chunks
+                
+                # Get glossary if available
+                glossary = await get_glossary(job_id)
+                if glossary:
+                    job_dict["glossary"] = glossary
+                
+                # Get critiques if available
+                critiques = await get_critiques(job_id)
+                if critiques:
+                    job_dict["critiques"] = critiques
+                
+                # Get metrics if available
+                metrics = await get_metrics(job_id)
+                if metrics:
+                    job_dict["metrics"] = metrics
+                
+                yield f"data: {json.dumps(job_dict, default=str)}\n\n"
+            
+            # If job is completed or failed, end the stream
+            if job_dict.get("status") in ["completed", "failed"]:
+                break
+            
+            # Wait before checking again
+            await asyncio.sleep(1)
+        
+        # Send end event
+        yield "event: end\ndata: {}\n\n"
+    
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 #     return {"message": "Job listing endpoint not fully implemented."}
 
 @app.get("/health", tags=["Health"])
@@ -295,6 +465,135 @@ async def stream_translation(
     Returns a list of enabled LLM providers and their models.
     """
     return list_available_providers()
+
+# --- Environment Variables Management Routes ---
+@app.get("/env-variables", tags=["Configuration"])
+async def get_env_variables():
+    """Get all environment variables."""
+    from .database import get_env_variables
+    env_vars = await get_env_variables()
+    return {"env_variables": env_vars}
+
+@app.post("/env-variables", tags=["Configuration"])
+async def create_env_variable(request: Request):
+    """Create or update an environment variable."""
+    from .database import set_env_variable, save_env_variables_to_file
+    data = await request.json()
+    
+    key = data.get("key")
+    value = data.get("value")
+    description = data.get("description")
+    
+    if not key or not value:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Key and value are required"}
+        )
+    
+    success = await set_env_variable(key, value, description)
+    if success:
+        # Also save to .env file
+        file_success = await save_env_variables_to_file()
+        if file_success:
+            # Update os.environ with the new value
+            os.environ[key] = value
+            return {"detail": f"Environment variable {key} set successfully and saved to .env file"}
+        else:
+            return {"detail": f"Environment variable {key} set in database but failed to update .env file"}
+    else:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Failed to set environment variable {key}"}
+        )
+
+@app.delete("/env-variables/{key}", tags=["Configuration"])
+async def delete_env_variable_endpoint(key: str):
+    """Delete an environment variable."""
+    from .database import delete_env_variable, save_env_variables_to_file
+    success = await delete_env_variable(key)
+    if success:
+        # Also update .env file
+        file_success = await save_env_variables_to_file()
+        if file_success:
+            # Remove from os.environ if present
+            if key in os.environ:
+                del os.environ[key]
+            return {"detail": f"Environment variable {key} deleted successfully and removed from .env file"}
+        else:
+            return {"detail": f"Environment variable {key} deleted from database but failed to update .env file"}
+    else:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Failed to delete environment variable {key}"}
+        )
+
+# --- LLM Configuration Routes ---
+@app.get("/llm-configs", tags=["Configuration"])
+async def get_llm_configs():
+    """Get all LLM configurations."""
+    from .database import get_llm_configs
+    configs = await get_llm_configs()
+    return {"llm_configs": configs}
+
+@app.get("/llm-configs/default", tags=["Configuration"])
+async def get_default_llm_config():
+    """Get the default LLM configuration."""
+    from .database import get_default_llm_config
+    config = await get_default_llm_config()
+    if config:
+        return config
+    else:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "No default LLM configuration found"}
+        )
+
+@app.post("/llm-configs", tags=["Configuration"])
+async def create_llm_config(request: Request):
+    """Create a new LLM configuration."""
+    from .database import save_llm_config
+    data = await request.json()
+    
+    set_as_default = data.pop("set_as_default", False)
+    
+    if not data.get("provider") or not data.get("model"):
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Provider and model are required"}
+        )
+    
+    config_id = await save_llm_config(data, set_as_default)
+    return {"id": config_id, "detail": "LLM configuration saved successfully"}
+
+@app.put("/llm-configs/{config_id}", tags=["Configuration"])
+async def update_llm_config_endpoint(config_id: int, request: Request):
+    """Update an existing LLM configuration."""
+    from .database import update_llm_config
+    data = await request.json()
+    
+    set_as_default = data.pop("set_as_default", False)
+    
+    success = await update_llm_config(config_id, data, set_as_default)
+    if success:
+        return {"detail": f"LLM configuration {config_id} updated successfully"}
+    else:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Failed to update LLM configuration {config_id}"}
+        )
+
+@app.delete("/llm-configs/{config_id}", tags=["Configuration"])
+async def delete_llm_config_endpoint(config_id: int):
+    """Delete an LLM configuration."""
+    from .database import delete_llm_config
+    success = await delete_llm_config(config_id)
+    if success:
+        return {"detail": f"LLM configuration {config_id} deleted successfully"}
+    else:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Failed to delete LLM configuration {config_id}"}
+        )
 
 # --- Run with Uvicorn (if running this file directly) ---
 if __name__ == "__main__":
