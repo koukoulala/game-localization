@@ -361,16 +361,12 @@
         
         <!-- Configuration View (LLM + Environment) -->
         <div x-show="viewMode === 'llm-config'" class="space-y-4">
-            <div class="card">
+            <div class="max-w-5xl mx-auto">
                 <h2 class="text-xl font-semibold mb-6 text-center">Configuration</h2>
-                
-                <!-- Two-column layout for LLM and Environment Settings -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    
-                    <!-- Left Column: LLM Configuration -->
-                    <div class="space-y-6">
+                <div class="space-y-8">
+                    <!-- LLM Configuration Section -->
+                    <div class="card space-y-6">
                         <h3 class="text-lg font-semibold text-center">LLM Configuration</h3>
-                        
                         <!-- Current Default Configuration -->
                         <div class="p-4 border border-[var(--border-color)] rounded-md bg-[var(--bg-tertiary)]">
                             <h4 class="text-md font-medium mb-4 text-center">Current Default Configuration</h4>
@@ -386,7 +382,6 @@
                                 No default configuration set. Create one using the form.
                             </div>
                         </div>
-                        
                         <!-- New Configuration Form -->
                         <div class="p-4 border border-[var(--border-color)] rounded-md">
                             <h4 class="text-md font-medium mb-4 text-center">Create New Configuration</h4>
@@ -436,7 +431,6 @@
                                 </div>
                             </div>
                         </div>
-                        
                         <!-- Saved Configurations List -->
                         <div>
                             <h4 class="text-md font-medium mb-3 text-center">Saved Configurations</h4>
@@ -484,11 +478,9 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Right Column: Environment Variables -->
-                    <div class="space-y-6">
+                    <!-- Environment Variables Section -->
+                    <div class="card space-y-6">
                         <h3 class="text-lg font-semibold text-center">Environment Variables</h3>
-                        
                         <!-- Add/Edit Environment Variable Form -->
                         <div class="p-4 border border-[var(--border-color)] rounded-md">
                             <h4 class="text-md font-medium mb-4 text-center">Add/Edit Environment Variable</h4>
@@ -512,7 +504,6 @@
                                 </div>
                             </div>
                         </div>
-                        
                         <!-- Saved Environment Variables List -->
                         <div>
                             <h4 class="text-md font-medium mb-3 text-center">Saved Environment Variables</h4>
