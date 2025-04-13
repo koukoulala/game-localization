@@ -9,10 +9,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
-# Copy application files (adjust as needed)
-COPY prompts.yaml /app/prompts.yaml
-# COPY src/ /app/src/
-# COPY frontend/ /app/frontend/
 
 # Expose the port the application runs on
 EXPOSE 8051
