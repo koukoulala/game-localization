@@ -48,7 +48,7 @@ document.addEventListener('alpine:init', () => {
         llmConfigs: [],
         defaultLLMConfig: null,
         newLLMConfig: {
-            api_url: 'http://localhost:8051',
+            api_url: `${window.location.protocol}//${window.location.hostname}:8051`,
             provider: '',
             model: '',
             source_lang: '',
@@ -687,7 +687,7 @@ connectToJobStream(jobId) {
                 
                 // Reset form
                 this.newLLMConfig = {
-                    api_url: 'http://localhost:8051',
+                    api_url: `${window.location.protocol}//${window.location.hostname}:8051`,
                     provider: '',
                     model: '',
                     source_lang: '',
@@ -832,7 +832,7 @@ connectToJobStream(jobId) {
         editLLMConfig(config) {
             // Populate the form with the selected configuration's values
             this.newLLMConfig = {
-                api_url: config.api_url || 'http://localhost:8051',
+                api_url: config.api_url || `${window.location.protocol}//${window.location.hostname}:8051`,
                 provider: config.provider,
                 model: config.model,
                 source_lang: config.source_lang,
@@ -855,7 +855,7 @@ connectToJobStream(jobId) {
         duplicateLLMConfig(config) {
             // Create a new configuration with the same values but without the ID
             this.newLLMConfig = {
-                api_url: config.api_url || 'http://localhost:8051',
+                api_url: config.api_url || `${window.location.protocol}//${window.location.hostname}:8051`,
                 provider: config.provider,
                 model: config.model,
                 source_lang: config.source_lang,
