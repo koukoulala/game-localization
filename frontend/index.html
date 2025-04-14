@@ -134,8 +134,8 @@
             <h1 class="text-3xl font-bold text-center mb-6">Turjuman - LLM Powered Books  & Long Text Translator</h1>
             
             <!-- Main Navigation Tabs -->
-            <div class="border-b border-[var(--border-color)] mb-6">
-                <nav class="-mb-px flex justify-center space-x-8" aria-label="Main Navigation">
+            <div class="flex items-center justify-between border-b border-[var(--border-color)] mb-6">
+                <nav class="-mb-px flex space-x-8" aria-label="Main Navigation">
                     <button @click="viewMode = 'form'" :class="{'active': viewMode === 'form'}" class="tab">
                         New Translation
                     </button>
@@ -146,11 +146,7 @@
                         Configuration
                     </button>
                 </nav>
-            </div>
-            
-            <!-- Theme Switcher -->
-            <div class="flex justify-end mb-4">
-                <div>
+                <div class="flex items-center ml-4">
                     <label for="theme-select" class="text-sm font-medium mr-2">Theme:</label>
                     <select id="theme-select" x-model="theme" class="pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
                         <option value="light">Light</option>
