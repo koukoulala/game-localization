@@ -56,8 +56,9 @@ document.addEventListener('alpine:init', () => {
             target_language_accent: '',
             set_as_default: true
         },
+        modelFilter: '',
         configModels: [],
-        
+
         // Environment Variables
         envVariables: [],
         newEnvVar: {

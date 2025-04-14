@@ -400,10 +400,20 @@
                                     </select>
                                 </div>
                                 <div>
+                                    <label for="model-filter" class="block text-sm font-medium mb-1">Filter Models:</label>
+                                    <input
+                                        id="model-filter"
+                                        type="text"
+                                        x-model="modelFilter"
+                                        placeholder="Type to filter models..."
+                                        class="mb-2 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    >
+                                </div>
+                                <div>
                                     <label for="llm_model" class="block text-sm font-medium">Model:</label>
                                     <select id="llm_model" x-model="newLLMConfig.model" :disabled="!newLLMConfig.provider" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:opacity-50">
                                         <option value="">Select Model</option>
-                                        <template x-for="model in configModels" :key="model">
+                                        <template x-for="model in configModels.filter(m => !modelFilter || m.toLowerCase().includes(modelFilter.toLowerCase()))" :key="model">
                                             <option :value="model" x-text="model"></option>
                                         </template>
                                     </select>
