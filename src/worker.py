@@ -48,15 +48,27 @@ class TranslationWorker:
                     try:
                         # Prepare input state
                         config = json.loads(job['config_json']) if job['config_json'] else {}
+                        glossary = None
+                        try:
+                            if job.get('glossary_json'):
+                                glossary = json.loads(job['glossary_json'])
+                                if not isinstance(glossary, list): # Basic validation
+                                    logger.warning(f"Job {job['job_id']}: Invalid glossary format in DB (not a list), ignoring.")
+                                    glossary = None
+                        except json.JSONDecodeError:
+                            logger.error(f"Job {job['job_id']}: Failed to parse glossary_json from DB, ignoring.")
+                            glossary = None
+
                         input_state = {
                             "job_id": job['job_id'],
                             "original_content": job['original_content'],
                             "config": config,
+                            "contextualized_glossary": glossary, # Add the loaded glossary
                             "current_step": None,
                             "progress_percent": 0.0,
                             "logs": []
                         }
-                        
+
                         # Process with state updates
                         await self.process_job(job['job_id'], input_state)
                         

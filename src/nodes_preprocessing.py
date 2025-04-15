@@ -127,6 +127,13 @@ def init_translation(state: TranslationState) -> TranslationState:
     state_dict.setdefault('final_document', None)
     state_dict.setdefault('error_info', None)
 
+    # Check if user provided a glossary
+    if 'contextualized_glossary' in state_dict and state_dict['contextualized_glossary']:
+        glossary = state_dict['contextualized_glossary']
+        log_to_state(state_dict,
+                    f"Using user-provided glossary with {len(glossary)} terms.",
+                    "INFO", node=NODE_NAME)
+
     update_progress(state_dict, NODE_NAME, 0.0)
 
     # --- Handle Target Language Accent ---

@@ -52,7 +52,25 @@ workflow.add_node("assemble_document", assemble_document)
 
 # Define Edges and Entry Point
 workflow.set_entry_point("init_translation")
-workflow.add_edge("init_translation", "terminology_unification")
+
+# Define conditional edge function to check for user-provided glossary
+def decide_after_init(state: TranslationState) -> str:
+    """Determines next step after initialization."""
+    if "contextualized_glossary" in state and state["contextualized_glossary"]:
+        # Skip terminology extraction if user provided a glossary
+        return "chunk_document"
+    return "terminology_unification"
+
+# Add conditional edges after init_translation node
+workflow.add_conditional_edges(
+    "init_translation",
+    decide_after_init,
+    {
+        "terminology_unification": "terminology_unification",
+        "chunk_document": "chunk_document"
+    }
+)
+
 workflow.add_edge("terminology_unification", "chunk_document")
 workflow.add_edge("chunk_document", "initial_translation")
 workflow.add_edge("initial_translation", "critique_stage") # Updated edge target

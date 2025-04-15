@@ -67,6 +67,18 @@ document.addEventListener('alpine:init', () => {
             description: ''
         },
 
+        // User Glossaries
+        userGlossaries: [], // List of { glossary_id, name, is_default }
+        selectedGlossaryId: "none", // ID of glossary selected for translation ('', 'none', or specific ID)
+        currentGlossary: { // For the create/edit form
+            glossary_id: null,
+            name: '',
+            glossary_json_string: '', // Store as string for textarea editing
+        },
+        glossaryFilename: '', // Name of the uploaded file
+        glossaryError: '', // Error message for glossary form
+        glossaryUsedSource: '', // Source of glossary used in the last job ('direct', 'id', 'default', 'none')
+
 
         // --- Utility Functions (defined within the component) ---
         cleanMarkdown(text) {
@@ -119,6 +131,7 @@ document.addEventListener('alpine:init', () => {
             // These can be fetched in parallel
             this.fetchJobHistory();
             this.fetchEnvVariables();
+            this.loadUserGlossaries(); // Fetch glossaries on init
 
             // Watch for theme changes
             this.$watch('theme', (newTheme) => {
@@ -145,9 +158,12 @@ document.addEventListener('alpine:init', () => {
                     this.fetchEnvVariables();
                 } else if (newMode === 'history') {
                     this.fetchJobHistory();
+                } else if (newMode === 'glossary') {
+                    this.loadUserGlossaries(); // Refresh when switching to glossary tab
+                    this.resetCurrentGlossary(); // Clear edit form
                 }
             });
-            
+
             // Apply default LLM config if available
             this.$watch('defaultLLMConfig', (config) => {
                 if (config) {
@@ -296,9 +312,10 @@ async startTranslation() {
         job_id: this.jobId,
         original_content: this.inputData.original_content,
         original_filename: this.originalFilename,
-        config: this.inputData.config
+        config: this.inputData.config,
+        glossary_id: this.selectedGlossaryId // Add selected glossary ID
     };
-    
+
     try {
         // Submit job to queue
         const response = await fetch(`${this.apiUrl.replace(/\/$/, '')}/jobs`, {
@@ -315,7 +332,8 @@ async startTranslation() {
         
         const result = await response.json();
         console.log('Job submitted:', result);
-        
+        this.glossaryUsedSource = result.glossary_used || 'unknown'; // Store which glossary source was used
+
         // Connect to job stream
         this.connectToJobStream(this.jobId);
         
@@ -358,13 +376,11 @@ connectToJobStream(jobId) {
                         this.translatedChunks = eventData.translated_chunks;
                     }
                     
-                    // Update glossary if available
-                    if (eventData.glossary) {
-                        this.status.contextualized_glossary = eventData.glossary;
-                    } else if (eventData.contextualized_glossary) {
-                        this.status.contextualized_glossary = eventData.contextualized_glossary;
+                    // Update job-specific extracted glossary if available (key renamed in server)
+                    if (eventData.job_glossary) {
+                        this.status.contextualized_glossary = eventData.job_glossary;
                     }
-                    
+
                     // Update critiques if available
                     if (eventData.critiques) {
                         this.status.critiques = eventData.critiques;
@@ -492,11 +508,13 @@ connectToJobStream(jobId) {
                     error_info: data.error_info,
                     chunks: data.chunks || [],
                     translated_chunks: data.chunks?.map(c => c.translated_chunk) || [],
-                    contextualized_glossary: data.glossary || [],
+                    contextualized_glossary: data.job_glossary || [], // Use job_glossary key
                     critiques: data.critiques || [],
                     metrics: data.metrics || {}
+                    // TODO: Backend should ideally return glossary_used source here too
                 };
-                
+                this.glossaryUsedSource = data.glossary_used || 'unknown'; // Attempt to get from details
+
                 // If job is still processing, connect to stream
                 if (data.status === 'processing') {
                     this.isLoading = true;
@@ -896,6 +914,204 @@ connectToJobStream(jobId) {
             } catch (error) {
                 console.error("Error deleting environment variable:", error);
                 alert('Failed to delete environment variable: ' + error.message);
+            }
+        },
+
+        // --- Glossary Management Methods ---
+        async loadUserGlossaries() {
+            try {
+                const response = await fetch(`${this.apiUrl.replace(/\/$/, '')}/glossaries`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                this.userGlossaries = data.glossaries || [];
+                console.log('User glossaries loaded:', this.userGlossaries);
+            } catch (error) {
+                console.error("Error loading user glossaries:", error);
+                this.glossaryError = `Failed to load glossaries: ${error.message}`;
+                this.userGlossaries = [];
+            }
+        },
+
+        handleGlossaryFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                this.glossaryFilename = file.name;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.currentGlossary.glossary_json_string = e.target.result;
+                    this.glossaryError = ''; // Clear error on new file load
+                };
+                reader.onerror = (e) => {
+                    console.error("Error reading glossary file:", e);
+                    this.glossaryError = "Error reading glossary file.";
+                    this.glossaryFilename = '';
+                };
+                reader.readAsText(file);
+            }
+        },
+
+        resetCurrentGlossary() {
+            this.currentGlossary = { glossary_id: null, name: '', glossary_json_string: '' };
+            this.glossaryFilename = '';
+            this.glossaryError = '';
+            // Reset file input visually if possible (trickier)
+            const fileInput = document.getElementById('glossary-file-upload');
+            if (fileInput) fileInput.value = null;
+        },
+
+        async saveUserGlossary() {
+            this.glossaryError = ''; // Clear previous errors
+            let parsedGlossaryData;
+
+            // 1. Parse and Validate JSON string
+            try {
+                if (!this.currentGlossary.glossary_json_string.trim()) {
+                    this.glossaryError = "Glossary JSON cannot be empty.";
+                    return;
+                }
+                parsedGlossaryData = JSON.parse(this.currentGlossary.glossary_json_string);
+
+                if (!Array.isArray(parsedGlossaryData)) {
+                    this.glossaryError = "Glossary data must be a valid JSON array.";
+                    return;
+                }
+
+                // Basic structure validation
+                for (let i = 0; i < parsedGlossaryData.length; i++) {
+                    const entry = parsedGlossaryData[i];
+                    if (typeof entry !== 'object' || entry === null || !entry.sourceTerm || typeof entry.sourceTerm !== 'string' || !entry.proposedTranslations || typeof entry.proposedTranslations !== 'object') {
+                        this.glossaryError = `Invalid entry format at index ${i}. Each entry must be an object with 'sourceTerm' (string) and 'proposedTranslations' (object).`;
+                        return;
+                    }
+                }
+
+            } catch (e) {
+                this.glossaryError = `Invalid JSON format: ${e.message}`;
+                return;
+            }
+
+            // 2. Prepare request data
+            const glossaryPayload = {
+                name: this.currentGlossary.name,
+                glossary_data: parsedGlossaryData
+            };
+
+            // 3. Determine URL and Method (Create vs Update)
+            const isUpdate = !!this.currentGlossary.glossary_id;
+            const url = isUpdate
+                ? `${this.apiUrl.replace(/\/$/, '')}/glossaries/${this.currentGlossary.glossary_id}`
+                : `${this.apiUrl.replace(/\/$/, '')}/glossaries`;
+            const method = isUpdate ? 'PUT' : 'POST';
+
+            // 4. Send request
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(glossaryPayload)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || `HTTP error! status: ${response.status}`);
+                }
+
+                alert(`Glossary '${glossaryPayload.name}' ${isUpdate ? 'updated' : 'saved'} successfully!`);
+                this.resetCurrentGlossary();
+                await this.loadUserGlossaries(); // Refresh the list
+
+            } catch (error) {
+                console.error(`Error ${isUpdate ? 'updating' : 'saving'} glossary:`, error);
+                this.glossaryError = `Failed to ${isUpdate ? 'update' : 'save'} glossary: ${error.message}`;
+            }
+        },
+
+        async editUserGlossary(glossaryId) {
+            this.glossaryError = '';
+            try {
+                const response = await fetch(`${this.apiUrl.replace(/\/$/, '')}/glossaries/${glossaryId}`);
+                if (!response.ok) {
+                     const errData = await response.json();
+                    throw new Error(errData.detail || `HTTP error! status: ${response.status}`);
+                }
+                const glossaryData = await response.json();
+
+                this.currentGlossary = {
+                    glossary_id: glossaryData.glossary_id,
+                    name: glossaryData.name,
+                    // Pretty-print JSON for editing
+                    glossary_json_string: JSON.stringify(glossaryData.glossary_data || [], null, 2)
+                };
+                this.glossaryFilename = ''; // Clear filename when editing
+
+                // Scroll to the form for better UX
+                 document.querySelector('.card h3[x-text^="Edit Glossary"]').scrollIntoView({ behavior: 'smooth' });
+
+
+            } catch (error) {
+                console.error(`Error fetching glossary ${glossaryId} for editing:`, error);
+                this.glossaryError = `Failed to load glossary for editing: ${error.message}`;
+            }
+        },
+
+        async deleteUserGlossary(glossaryId, glossaryName) {
+            if (!confirm(`Are you sure you want to delete the glossary "${glossaryName}"? This cannot be undone.`)) return;
+            this.glossaryError = '';
+            try {
+                const response = await fetch(`${this.apiUrl.replace(/\/$/, '')}/glossaries/${glossaryId}`, { method: 'DELETE' });
+                 const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.detail || `HTTP error! status: ${response.status}`);
+                }
+                alert(`Glossary "${glossaryName}" deleted successfully.`);
+                await this.loadUserGlossaries(); // Refresh list
+                 // If the deleted glossary was being edited, reset the form
+                if (this.currentGlossary.glossary_id === glossaryId) {
+                    this.resetCurrentGlossary();
+                }
+            } catch (error) {
+                console.error(`Error deleting glossary ${glossaryId}:`, error);
+                 this.glossaryError = `Failed to delete glossary: ${error.message}`;
+                 // Still try to refresh list in case of partial failure or stale data
+                 await this.loadUserGlossaries();
+            }
+        },
+
+        async setDefaultUserGlossary(glossaryId) {
+             this.glossaryError = '';
+            try {
+                const response = await fetch(`${this.apiUrl.replace(/\/$/, '')}/glossaries/${glossaryId}/default`, { method: 'POST' });
+                 const result = await response.json();
+                if (!response.ok) {
+                     throw new Error(result.detail || `HTTP error! status: ${response.status}`);
+                }
+                alert(`Glossary set as default successfully.`);
+                await this.loadUserGlossaries(); // Refresh list to show new default status
+            } catch (error) {
+                console.error(`Error setting glossary ${glossaryId} as default:`, error);
+                 this.glossaryError = `Failed to set default glossary: ${error.message}`;
+                 // Still try to refresh list
+                 await this.loadUserGlossaries();
+            }
+        },
+
+        async downloadGlossary(glossaryId, glossaryName) {
+             this.glossaryError = '';
+             try {
+                const response = await fetch(`${this.apiUrl.replace(/\/$/, '')}/glossaries/${glossaryId}`);
+                 if (!response.ok) {
+                     const errData = await response.json();
+                    throw new Error(errData.detail || `HTTP error! status: ${response.status}`);
+                }
+                const glossary = await response.json();
+                const jsonString = JSON.stringify(glossary.glossary_data || [], null, 2);
+                const filename = `${glossaryName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_glossary.json`;
+                this.downloadFile(jsonString, filename, 'application/json');
+
+            } catch (error) {
+                console.error(`Error downloading glossary ${glossaryId}:`, error);
+                 this.glossaryError = `Failed to download glossary: ${error.message}`;
             }
         }
 

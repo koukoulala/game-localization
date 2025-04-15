@@ -139,6 +139,9 @@
                     <button @click="viewMode = 'form'" :class="{'active': viewMode === 'form'}" class="tab">
                         New Translation
                     </button>
+                    <button @click="viewMode = 'glossary'; loadUserGlossaries()" :class="{'active': viewMode === 'glossary'}" class="tab">
+                        Glossary Management
+                    </button>
                     <button @click="showJobHistory()" :class="{'active': viewMode === 'history'}" class="tab">
                         Job History
                     </button>
@@ -181,6 +184,26 @@
                             <label for="target_accent" class="block text-sm font-medium">Target Style/Accent:</label>
                             <input type="text" id="target_accent" x-model="inputData.config.target_language_accent" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., professional, Egyptian Arabic">
                         </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2 class="text-xl font-semibold mb-3">Glossary Selection</h2>
+                    <div>
+                        <label for="glossary_select" class="block text-sm font-medium">Select Glossary:</label>
+                        <select id="glossary_select" x-model="selectedGlossaryId" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            <option value="none">None (Use Terminology Extraction)</option>
+                            <option value="">Default Glossary (if set)</option>
+                            <template x-for="glossary in userGlossaries" :key="glossary.glossary_id">
+                                <option :value="glossary.glossary_id" x-text="glossary.name + (glossary.is_default ? ' (Default)' : '')"></option>
+                            </template>
+                        </select>
+                        <p class="mt-1 text-xs text-[var(--text-muted)]">Select a saved glossary or choose 'None' to use automatic term extraction.</p>
+                        <p class="mt-1 text-xs text-indigo-600" x-show="selectedGlossaryId === ''">Using: Default Glossary (if available)</p>
+                        <p class="mt-1 text-xs text-orange-600" x-show="selectedGlossaryId === 'none'">Using: Automatic Term Extraction</p>
+                        <template x-if="selectedGlossaryId && selectedGlossaryId !== 'none'">
+                             <p class="mt-1 text-xs text-green-600">Using: <span x-text="userGlossaries.find(g => g.glossary_id === selectedGlossaryId)?.name || 'Selected Glossary'"></span></p>
+                        </template>
                     </div>
                 </div>
 
@@ -304,7 +327,15 @@
 
                                 <!-- Glossary View -->
                                 <div x-show="activeTab === 'glossary'">
-                                    <h3 class="text-lg font-semibold mb-2">Translation Glossary</h3>
+                                    <div class="flex justify-between items-center mb-2">
+                                        <h3 class="text-lg font-semibold">Translation Glossary</h3>
+                                        <span class="text-sm text-[var(--text-muted)]"
+                                              x-text="glossaryUsedSource === 'id' ? 'Source: User Selected' :
+                                                     (glossaryUsedSource === 'default' ? 'Source: Default Glossary' :
+                                                     (glossaryUsedSource === 'direct' ? 'Source: Direct Input (API)' :
+                                                     (glossaryUsedSource === 'none' ? 'Source: Automatic Extraction' : 'Source: Unknown')))">
+                                        </span>
+                                    </div>
                                     <div class="overflow-x-auto">
                                         <table class="min-w-full divide-y divide-[var(--border-color)]">
                                             <thead>
@@ -352,9 +383,90 @@
 
             </div>
         </div>
-        
-        <!-- Environment Variables Configuration View removed as it's now merged with LLM Configuration -->
-        
+
+        <!-- Glossary Management View -->
+        <div x-show="viewMode === 'glossary'" class="space-y-4">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-xl font-semibold mb-6 text-center">Glossary Management</h2>
+
+                <!-- Create/Edit Glossary Form -->
+                <div class="card">
+                    <h3 class="text-lg font-semibold mb-3" x-text="currentGlossary.glossary_id ? 'Edit Glossary' : 'Create New Glossary'">Create New Glossary</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="glossary_name" class="block text-sm font-medium">Glossary Name:</label>
+                            <input type="text" id="glossary_name" x-model="currentGlossary.name" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Enter a name for this glossary">
+                        </div>
+                        <div>
+                            <label for="glossary-file-upload" class="block text-sm font-medium mb-1">Upload Glossary JSON File:</label>
+                            <input id="glossary-file-upload" type="file" @change="handleGlossaryFileUpload($event)" accept=".json" class="block w-full text-sm text-[var(--text-muted)] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[var(--bg-tertiary)] file:text-[var(--text-primary)] hover:file:bg-opacity-80">
+                            <p x-show="glossaryFilename" class="mt-1 text-sm text-[var(--text-muted)]">Selected file: <span x-text="glossaryFilename"></span></p>
+                        </div>
+                        <div>
+                            <label for="glossary_json_editor" class="block text-sm font-medium">Or Paste/Edit JSON:</label>
+                            <textarea id="glossary_json_editor" x-model="currentGlossary.glossary_json_string" rows="10" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm font-mono" placeholder='[{"sourceTerm": "example", "proposedTranslations": {"target_lang": "translation"}}, ...]'>
+                            </textarea>
+                            <p class="mt-1 text-xs text-[var(--text-muted)]">Format: Array of objects, each with "sourceTerm" (string) and "proposedTranslations" (object like {"lang_code": "term"}).</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button @click="saveUserGlossary" :disabled="!currentGlossary.name || !currentGlossary.glossary_json_string" class="inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span x-text="currentGlossary.glossary_id ? 'Update Glossary' : 'Save New Glossary'">Save New Glossary</span>
+                            </button>
+                            <button @click="resetCurrentGlossary()" x-show="currentGlossary.glossary_id" class="inline-flex justify-center items-center py-2 px-4 border border-[var(--border-color)] shadow-sm text-sm font-medium rounded-md text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                                Cancel Edit
+                            </button>
+                        </div>
+                         <div x-show="glossaryError" class="mt-2 text-sm text-red-600" x-text="glossaryError"></div>
+                    </div>
+                </div>
+
+                <!-- Saved Glossaries List -->
+                <div class="card">
+                    <h3 class="text-lg font-semibold mb-3">Saved Glossaries</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-[var(--border-color)]">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Name</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Default</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-[var(--border-color)]">
+                                <template x-for="glossary in userGlossaries" :key="glossary.glossary_id">
+                                    <tr class="hover:bg-[var(--bg-tertiary)]">
+                                        <td class="px-4 py-2 text-sm" x-text="glossary.name"></td>
+                                        <td class="px-4 py-2 text-sm">
+                                            <span x-show="glossary.is_default" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                Default
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-2 text-sm space-x-2 whitespace-nowrap">
+                                            <button @click="setDefaultUserGlossary(glossary.glossary_id)" x-show="!glossary.is_default" class="text-indigo-600 hover:text-indigo-900">
+                                                Set Default
+                                            </button>
+                                            <button @click="editUserGlossary(glossary.glossary_id)" class="text-blue-600 hover:text-blue-900">
+                                                Edit
+                                            </button>
+                                             <button @click="downloadGlossary(glossary.glossary_id, glossary.name)" class="text-green-600 hover:text-green-900">
+                                                Download
+                                            </button>
+                                            <button @click="deleteUserGlossary(glossary.glossary_id, glossary.name)" class="text-red-600 hover:text-red-900">
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div x-show="userGlossaries.length === 0" class="text-center py-4 text-[var(--text-muted)]">
+                        No glossaries saved yet. Create one using the form above.
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Configuration View (LLM + Environment) -->
         <div x-show="viewMode === 'llm-config'" class="space-y-4">
             <div class="max-w-5xl mx-auto">

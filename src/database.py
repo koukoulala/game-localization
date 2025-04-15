@@ -8,33 +8,45 @@ from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "translations.db")
 
+# Helper function to check column existence using PRAGMA
+async def _column_exists(db, table_name, column_name):
+    try:
+        cursor = await db.execute(f"PRAGMA table_info({table_name})")
+        columns = await cursor.fetchall()
+        # Column info: (cid, name, type, notnull, dflt_value, pk)
+        return any(column[1] == column_name for column in columns)
+    except sqlite3.OperationalError:
+        # Table might not exist yet
+        return False
+
 async def init_db():
     """Initialize the database and create tables if they don't exist."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    
+
     # Check if we need to run migrations
     need_migration = False
     need_filename_migration = False
     need_env_tables = False
     need_llm_tables = False
-    
+    need_glossary_migration = False # Flag for glossary column
+
     try:
         async with aiosqlite.connect(DB_PATH) as db:
-            # Check if the jobs table exists
+            # Check jobs table columns using PRAGMA
+            # First, check if the table exists at all
             cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='jobs'")
-            if await cursor.fetchone():
-                # Check if started_at column exists
-                try:
-                    await db.execute("SELECT started_at FROM jobs LIMIT 1")
-                except sqlite3.OperationalError:
+            jobs_table_exists = await cursor.fetchone()
+
+            if jobs_table_exists:
+                # If table exists, check for specific columns using the helper
+                if not await _column_exists(db, 'jobs', 'started_at'):
                     need_migration = True
-                
-                # Check if filename column exists
-                try:
-                    await db.execute("SELECT filename FROM jobs LIMIT 1")
-                except sqlite3.OperationalError:
+                if not await _column_exists(db, 'jobs', 'filename'):
                     need_filename_migration = True
-            
+                if not await _column_exists(db, 'jobs', 'glossary_json'):
+                    need_glossary_migration = True
+            # else: No need for column migrations if table doesn't exist yet
+
             # Check if env_variables table exists
             cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='env_variables'")
             if not await cursor.fetchone():
@@ -70,7 +82,8 @@ async def init_db():
             completed_at TIMESTAMP,
             error_info TEXT,
             config_json TEXT,
-            filename TEXT
+            filename TEXT,
+            glossary_json TEXT -- Added column for job-specific glossary
         )
         """)
         
@@ -172,10 +185,29 @@ async def init_db():
             FOREIGN KEY (job_id) REFERENCES jobs (job_id)
         )
         """)
+
+        # Create user glossaries table
+        await db.execute("""
+        CREATE TABLE IF NOT EXISTS user_glossaries (
+            glossary_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            glossary_json TEXT NOT NULL,
+            is_default BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP,
+            updated_at TIMESTAMP
+        )
+        """)
+        # Ensure only one default glossary
+        await db.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_default_glossary
+        ON user_glossaries (is_default)
+        WHERE is_default = 1;
+        """)
+
         await db.commit()
-    
+
     # Run migrations if needed
-    if need_migration or need_filename_migration or need_env_tables or need_llm_tables:
+    if need_migration or need_filename_migration or need_glossary_migration or need_env_tables or need_llm_tables: # Added glossary flag
         print("Running database migrations...")
         try:
             async with aiosqlite.connect(DB_PATH) as db:
@@ -195,7 +227,13 @@ async def init_db():
                 if need_filename_migration:
                     print("Adding filename column to jobs table...")
                     await db.execute("ALTER TABLE jobs ADD COLUMN filename TEXT")
-                
+
+                # Add glossary_json column if needed
+                if need_glossary_migration: # Check the flag here
+                    print("Adding glossary_json column to jobs table...")
+                    await db.execute("ALTER TABLE jobs ADD COLUMN glossary_json TEXT")
+
+
                 # Create env_variables table if needed
                 if need_env_tables:
                     print("Creating env_variables table...")
@@ -261,8 +299,8 @@ async def create_job(job_data: Dict[str, Any]) -> str:
         INSERT INTO jobs (
             job_id, original_content, source_lang, target_lang,
             provider, model, target_language_accent, status, progress_percent,
-            current_step, created_at, updated_at, config_json, filename
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            current_step, created_at, updated_at, config_json, filename, glossary_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             job_id,
             job_data.get("original_content", ""),
@@ -277,7 +315,8 @@ async def create_job(job_data: Dict[str, Any]) -> str:
             now,
             now,
             json.dumps(config),
-            filename
+            filename,
+            json.dumps(job_data.get("contextualized_glossary")) # Serialize and store glossary
         ))
         await db.commit()
     
@@ -287,9 +326,9 @@ async def get_job(job_id: str) -> Optional[Dict[str, Any]]:
     """Get a job by ID."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        cursor = await db.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,))
+        cursor = await db.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)) # Select * includes new column
         row = await cursor.fetchone()
-        
+
         if not row:
             return None
         
@@ -323,13 +362,13 @@ async def get_next_pending_job() -> Optional[Dict[str, Any]]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute("""
-        SELECT * FROM jobs 
-        WHERE status = 'pending' 
-        ORDER BY created_at ASC 
+        SELECT * FROM jobs
+        WHERE status = 'pending'
+        ORDER BY created_at ASC
         LIMIT 1
         """)
         row = await cursor.fetchone()
-        
+
         if row:
             return dict(row)
         return None
@@ -868,3 +907,127 @@ async def delete_llm_config(config_id: int) -> bool:
         await db.commit()
     
     return True
+
+# User Glossary CRUD operations
+async def create_user_glossary(name: str, glossary_data: List[Dict[str, Any]]) -> str:
+    """Create a new user glossary entry."""
+    glossary_id = str(uuid.uuid4())
+    now = datetime.now().isoformat()
+    glossary_json = json.dumps(glossary_data)
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+        INSERT INTO user_glossaries (glossary_id, name, glossary_json, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        """, (glossary_id, name, glossary_json, now, now))
+        await db.commit()
+    return glossary_id
+
+async def get_user_glossary(glossary_id: str) -> Optional[Dict[str, Any]]:
+    """Get a user glossary by ID."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM user_glossaries WHERE glossary_id = ?", (glossary_id,))
+        row = await cursor.fetchone()
+        if row:
+            data = dict(row)
+            # Safely parse JSON, return None or empty list on error? Or raise? Let's return None for now.
+            try:
+                data['glossary_data'] = json.loads(data['glossary_json'])
+            except json.JSONDecodeError:
+                print(f"Error decoding JSON for glossary {glossary_id}")
+                data['glossary_data'] = None # Indicate parsing error
+            return data
+        return None
+
+async def list_user_glossaries() -> List[Dict[str, Any]]:
+    """List all user glossaries."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        # Return only metadata, not the full JSON for listing
+        cursor = await db.execute("SELECT glossary_id, name, is_default, created_at, updated_at FROM user_glossaries ORDER BY created_at DESC")
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+async def update_user_glossary(glossary_id: str, name: Optional[str] = None, glossary_data: Optional[List[Dict[str, Any]]] = None) -> bool:
+    """Update a user glossary's name and/or data."""
+    updates = {}
+    if name is not None:
+        updates["name"] = name
+    if glossary_data is not None:
+        # Basic validation before saving
+        if not isinstance(glossary_data, list):
+             print(f"Invalid glossary data format for update: {glossary_id}. Must be a list.")
+             return False
+        for entry in glossary_data:
+             if not isinstance(entry, dict) or "sourceTerm" not in entry or "proposedTranslations" not in entry:
+                 print(f"Invalid entry format in glossary data for update: {glossary_id}. Entry: {entry}")
+                 return False
+        updates["glossary_json"] = json.dumps(glossary_data)
+
+
+    if not updates:
+        return False # Nothing to update
+
+    now = datetime.now().isoformat()
+    updates["updated_at"] = now
+
+    set_clause = ", ".join([f"{key} = ?" for key in updates.keys()])
+    values = list(updates.values())
+    values.append(glossary_id)
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(f"UPDATE user_glossaries SET {set_clause} WHERE glossary_id = ?", values)
+        await db.commit()
+        # Check if any rows were affected
+        return cursor.rowcount > 0
+
+
+async def delete_user_glossary(glossary_id: str) -> bool:
+    """Delete a user glossary."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("DELETE FROM user_glossaries WHERE glossary_id = ?", (glossary_id,))
+        await db.commit()
+        return cursor.rowcount > 0
+
+async def set_default_glossary(glossary_id: str) -> bool:
+    """Set a glossary as the default, unsetting any previous default."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("BEGIN TRANSACTION")
+        try:
+            # Check if the glossary exists first
+            cursor = await db.execute("SELECT 1 FROM user_glossaries WHERE glossary_id = ?", (glossary_id,))
+            if not await cursor.fetchone():
+                print(f"Glossary {glossary_id} not found. Cannot set as default.")
+                await db.rollback()
+                return False
+
+            # Unset any existing default
+            await db.execute("UPDATE user_glossaries SET is_default = 0 WHERE is_default = 1")
+            # Set the new default
+            cursor = await db.execute("UPDATE user_glossaries SET is_default = 1 WHERE glossary_id = ?", (glossary_id,))
+            await db.commit()
+            return cursor.rowcount > 0 # Check if the update actually happened
+        except Exception as e:
+            await db.rollback()
+            print(f"Error setting default glossary: {e}")
+            # Specifically handle UNIQUE constraint error if needed
+            if "UNIQUE constraint failed" in str(e):
+                 print("Potential issue with UNIQUE index on is_default=1. Check table definition.")
+            return False
+
+async def get_default_glossary() -> Optional[Dict[str, Any]]:
+    """Get the default user glossary."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM user_glossaries WHERE is_default = 1 LIMIT 1")
+        row = await cursor.fetchone()
+        if row:
+            data = dict(row)
+            try:
+                data['glossary_data'] = json.loads(data['glossary_json'])
+            except json.JSONDecodeError:
+                 print(f"Error decoding JSON for default glossary {data.get('glossary_id')}")
+                 data['glossary_data'] = None # Indicate parsing error
+            return data
+        return None

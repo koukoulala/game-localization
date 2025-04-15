@@ -98,7 +98,7 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
             target_accent_guidance=target_accent_guidance # Pass the accent guidance
         )
         # Log the actual prompt being sent (DEBUG level)
-        # log_to_state(state_essentials, f"{worker_log_prefix}: Sending translation prompt:\n---\n{translation_system_prompt}\n---", "DEBUG", node=NODE_NAME)
+        log_to_state(state_essentials, f"{worker_log_prefix}: Sending translation prompt:\n---\n{translation_system_prompt}\n---", "DEBUG", node=NODE_NAME)
 
         translation_messages = [("system", translation_system_prompt)]
         translation_prompt_template = ChatPromptTemplate.from_messages(translation_messages)

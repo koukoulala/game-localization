@@ -48,7 +48,33 @@ from langserve import add_routes
 from langchain_core.callbacks import BaseCallbackHandler
 
 # Import database and worker modules
-from .database import init_db
+from .database import (
+    init_db,
+    create_user_glossary,
+    get_user_glossary,
+    list_user_glossaries,
+    update_user_glossary,
+    delete_user_glossary,
+    set_default_glossary,
+    get_default_glossary,
+    get_job as db_get_job, # Avoid name clash with endpoint
+    delete_job as db_delete_job,
+    get_logs as db_get_logs,
+    get_chunks as db_get_chunks,
+    get_glossary as db_get_job_glossary, # Avoid name clash
+    get_critiques as db_get_critiques,
+    get_metrics as db_get_metrics,
+    get_env_variables as db_get_env_variables,
+    set_env_variable as db_set_env_variable,
+    delete_env_variable as db_delete_env_variable,
+    get_llm_configs as db_get_llm_configs,
+    get_default_llm_config as db_get_default_llm_config,
+    save_llm_config as db_save_llm_config,
+    update_llm_config as db_update_llm_config,
+    delete_llm_config as db_delete_llm_config,
+    load_env_variables_to_os,
+    sync_env_file_with_db
+)
 from .job_queue import JobQueue
 from .worker import TranslationWorker
 
@@ -78,9 +104,7 @@ async def startup_event():
     """Initialize database and start worker on startup."""
     await init_db()
     
-    # Load environment variables from database
-    from .database import load_env_variables_to_os, sync_env_file_with_db, get_default_llm_config
-    
+    # Load environment variables from database (imports moved up)
     # First sync .env file with database (for first run)
     await sync_env_file_with_db()
     
@@ -91,7 +115,7 @@ async def startup_event():
     asyncio.create_task(worker.start())
     
     # Log default LLM config if available
-    default_config = await get_default_llm_config()
+    default_config = await db_get_default_llm_config()
     if default_config:
         logger.info(f"Default LLM configuration loaded: {default_config['provider']} - {default_config['model']}")
 
@@ -159,8 +183,101 @@ add_routes(
 async def create_job(request: Request):
     """Create a new translation job."""
     data = await request.json()
+    glossary_to_use = None
+    glossary_source = "none" # 'direct', 'id', 'default', 'none'
+
+    # 1. Check for directly provided glossary
+    if "contextualized_glossary" in data and data["contextualized_glossary"] is not None:
+        glossary_to_use = data["contextualized_glossary"]
+        glossary_source = "direct"
+        logger.info("Using directly provided glossary for new job.")
+
+    # 2. Else, check for glossary_id
+    elif "glossary_id" in data and data["glossary_id"] is not None:
+        glossary_id = data["glossary_id"]
+        if glossary_id.lower() == "none":
+            glossary_to_use = None
+            glossary_source = "none"
+            logger.info("Glossary explicitly set to 'none' for new job.")
+        else:
+            logger.info(f"Attempting to use user glossary with ID: {glossary_id}")
+            glossary_record = await get_user_glossary(glossary_id)
+            if glossary_record and glossary_record.get('glossary_data'):
+                glossary_to_use = glossary_record['glossary_data']
+                glossary_source = "id"
+                logger.info(f"Found and using glossary '{glossary_record.get('name')}' (ID: {glossary_id}).")
+            elif not glossary_record:
+                logger.warning(f"Glossary ID '{glossary_id}' not found.")
+                return JSONResponse(
+                    status_code=404,
+                    content={"error": "glossary_not_found", "detail": f"Glossary with ID '{glossary_id}' not found."}
+                )
+            else: # Record found but data is invalid/missing
+                 logger.warning(f"Glossary ID '{glossary_id}' found but contains invalid or missing data. Proceeding without glossary.")
+                 glossary_to_use = None
+                 glossary_source = "none" # Treat as none if data invalid
+
+    # 3. Else, try fetching the default glossary
+    else:
+        logger.info("No direct glossary or ID provided, checking for default glossary.")
+        default_glossary = await get_default_glossary()
+        if default_glossary and default_glossary.get('glossary_data'):
+            glossary_to_use = default_glossary['glossary_data']
+            glossary_source = "default"
+            logger.info(f"Using default glossary '{default_glossary.get('name')}' (ID: {default_glossary.get('glossary_id')}).")
+        else:
+            logger.info("No default glossary found or default glossary has invalid data. Proceeding without glossary.")
+            glossary_to_use = None
+            glossary_source = "none"
+
+    # 4. Validate the chosen glossary (if any)
+    if glossary_to_use is not None:
+        # Check if glossary is a list
+        if not isinstance(glossary_to_use, list):
+            logger.error(f"Invalid glossary format (not a list) from source '{glossary_source}'.")
+            return JSONResponse(
+                status_code=400,
+                content={"error": "wrong_glossary", "detail": "Glossary must be a list"}
+            )
+
+        # Check glossary size limit
+        if len(glossary_to_use) > 2000:
+            logger.error(f"Glossary size exceeds limit (found {len(glossary_to_use)}) from source '{glossary_source}'.")
+            return JSONResponse(
+                status_code=400,
+                content={"error": "wrong_glossary", "detail": f"Glossary exceeds maximum limit of 2000 terms (found {len(glossary_to_use)})"}
+            )
+
+        # Check each entry
+        for i, entry in enumerate(glossary_to_use):
+            if not isinstance(entry, dict):
+                logger.error(f"Invalid glossary entry format (not an object) at index {i} from source '{glossary_source}'.")
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "wrong_glossary", "detail": f"Each glossary entry must be an object (error at index {i})"}
+                )
+
+            if "sourceTerm" not in entry or not entry["sourceTerm"]:
+                 logger.error(f"Missing or empty 'sourceTerm' in glossary entry at index {i} from source '{glossary_source}'.")
+                 return JSONResponse(
+                    status_code=400,
+                    content={"error": "wrong_glossary", "detail": f"Each glossary entry must have a non-empty 'sourceTerm' (error at index {i})"}
+                )
+
+            if "proposedTranslations" not in entry:
+                 logger.error(f"Missing 'proposedTranslations' in glossary entry at index {i} from source '{glossary_source}'.")
+                 return JSONResponse(
+                    status_code=400,
+                    content={"error": "wrong_glossary", "detail": f"Each glossary entry must have 'proposedTranslations' (error at index {i})"}
+                )
+            # Optional: Further validation on proposedTranslations format if needed
+
+    # 5. Update data with the final glossary to use (can be None)
+    data['contextualized_glossary'] = glossary_to_use
+
+    # 6. Enqueue job
     job_id = await job_queue.enqueue_job(data)
-    return {"job_id": job_id, "status": "pending"}
+    return {"job_id": job_id, "status": "pending", "glossary_used": glossary_source}
 
 @app.get("/jobs", tags=["Jobs"])
 async def list_jobs(limit: int = 100, offset: int = 0):
@@ -179,9 +296,9 @@ async def get_job(job_id: str):
 @app.get("/jobs/{job_id}/download", tags=["Jobs"])
 async def download_job(job_id: str):
     """Download the final translation for a job."""
-    from .database import get_job
-    job = await get_job(job_id)
-    
+    # Use aliased import
+    job = await db_get_job(job_id)
+
     if not job or not job.get("final_document"):
         return JSONResponse(
             status_code=404,
@@ -208,18 +325,17 @@ async def download_job(job_id: str):
 @app.delete("/jobs/{job_id}", tags=["Jobs"])
 async def delete_job_endpoint(job_id: str):
     """Delete a job and all related data."""
-    from .database import delete_job, get_job
-    
+    # Use aliased imports
     # Check if job exists
-    job = await get_job(job_id)
+    job = await db_get_job(job_id)
     if not job:
         return JSONResponse(
             status_code=404,
             content={"detail": f"Job {job_id} not found"}
         )
-    
+
     # Delete the job
-    success = await delete_job(job_id)
+    success = await db_delete_job(job_id)
     if success:
         return JSONResponse(
             status_code=200,
@@ -235,13 +351,12 @@ async def delete_job_endpoint(job_id: str):
 async def stream_job_updates(job_id: str):
     """Stream updates for a specific job."""
     async def event_generator():
-        from .database import get_job, get_logs, get_chunks, get_glossary, get_critiques, get_metrics
-        
+        # Use aliased imports
         last_update_time = 0
-        
+
         while True:
-            job = await get_job(job_id)
-            
+            job = await db_get_job(job_id)
+
             if not job:
                 yield f"data: {json.dumps({'error': 'Job not found'})}\n\n"
                 break
@@ -256,26 +371,26 @@ async def stream_job_updates(job_id: str):
                 last_update_time = current_time
                 
                 # Get recent logs
-                logs = await get_logs(job_id, limit=20)
+                logs = await db_get_logs(job_id, limit=20)
                 job_dict["recent_logs"] = logs
-                
+
                 # Get chunks if available
-                chunks = await get_chunks(job_id)
+                chunks = await db_get_chunks(job_id)
                 if chunks:
                     job_dict["chunks"] = chunks
-                
-                # Get glossary if available
-                glossary = await get_glossary(job_id)
-                if glossary:
-                    job_dict["glossary"] = glossary
-                
+
+                # Get job-specific extracted glossary if available
+                job_glossary = await db_get_job_glossary(job_id)
+                if job_glossary:
+                    job_dict["job_glossary"] = job_glossary # Renamed key
+
                 # Get critiques if available
-                critiques = await get_critiques(job_id)
+                critiques = await db_get_critiques(job_id)
                 if critiques:
                     job_dict["critiques"] = critiques
-                
+
                 # Get metrics if available
-                metrics = await get_metrics(job_id)
+                metrics = await db_get_metrics(job_id)
                 if metrics:
                     job_dict["metrics"] = metrics
                 
@@ -302,6 +417,138 @@ async def health():
 @app.get("/providers", tags=["Providers"])
 async def get_providers():
     return list_available_providers()
+
+# --- User Glossary Management Routes ---
+
+@app.post("/glossaries", tags=["Glossaries"], status_code=201)
+async def add_user_glossary(request: Request):
+    """Create a new user-managed glossary."""
+    try:
+        data = await request.json()
+        name = data.get("name")
+        glossary_data = data.get("glossary_data")
+
+        if not name or not glossary_data:
+            return JSONResponse(status_code=400, content={"detail": "Missing 'name' or 'glossary_data'"})
+
+        if not isinstance(glossary_data, list):
+             return JSONResponse(status_code=400, content={"detail": "'glossary_data' must be a list"})
+
+        # Basic validation of glossary structure
+        for i, entry in enumerate(glossary_data):
+             if not isinstance(entry, dict) or "sourceTerm" not in entry or "proposedTranslations" not in entry:
+                 return JSONResponse(status_code=400, content={"detail": f"Invalid entry format at index {i}. Each entry must be an object with 'sourceTerm' and 'proposedTranslations'."})
+
+        glossary_id = await create_user_glossary(name, glossary_data)
+        return {"glossary_id": glossary_id, "name": name, "detail": "Glossary created successfully"}
+
+    except json.JSONDecodeError:
+        return JSONResponse(status_code=400, content={"detail": "Invalid JSON format"})
+    except Exception as e:
+        logger.exception("Error creating user glossary:")
+        return JSONResponse(status_code=500, content={"detail": f"Internal server error: {e}"})
+
+
+@app.get("/glossaries", tags=["Glossaries"])
+async def get_user_glossaries_list():
+    """List all user-managed glossaries (metadata only)."""
+    try:
+        glossaries = await list_user_glossaries()
+        return {"glossaries": glossaries}
+    except Exception as e:
+        logger.exception("Error listing user glossaries:")
+        return JSONResponse(status_code=500, content={"detail": f"Internal server error: {e}"})
+
+
+@app.get("/glossaries/{glossary_id}", tags=["Glossaries"])
+async def get_single_user_glossary(glossary_id: str):
+    """Get a specific user-managed glossary, including its data."""
+    try:
+        glossary = await get_user_glossary(glossary_id)
+        if glossary:
+            # Remove the raw json string before sending response
+            glossary.pop('glossary_json', None)
+            return glossary
+        else:
+            return JSONResponse(status_code=404, content={"detail": "Glossary not found"})
+    except Exception as e:
+        logger.exception(f"Error getting user glossary {glossary_id}:")
+        return JSONResponse(status_code=500, content={"detail": f"Internal server error: {e}"})
+
+
+@app.put("/glossaries/{glossary_id}", tags=["Glossaries"])
+async def update_single_user_glossary(glossary_id: str, request: Request):
+    """Update a user-managed glossary's name and/or data."""
+    try:
+        data = await request.json()
+        name = data.get("name") # Optional
+        glossary_data = data.get("glossary_data") # Optional
+
+        if name is None and glossary_data is None:
+            return JSONResponse(status_code=400, content={"detail": "Provide 'name' and/or 'glossary_data' to update"})
+
+        # Validate glossary_data if provided
+        if glossary_data is not None:
+            if not isinstance(glossary_data, list):
+                 return JSONResponse(status_code=400, content={"detail": "'glossary_data' must be a list"})
+            for i, entry in enumerate(glossary_data):
+                 if not isinstance(entry, dict) or "sourceTerm" not in entry or "proposedTranslations" not in entry:
+                     return JSONResponse(status_code=400, content={"detail": f"Invalid entry format in 'glossary_data' at index {i}."})
+
+        success = await update_user_glossary(glossary_id, name=name, glossary_data=glossary_data)
+
+        if success:
+            return {"detail": "Glossary updated successfully"}
+        else:
+            # Could be not found or invalid data passed to db function
+            # Check if it exists first for a better error message
+            existing = await get_user_glossary(glossary_id)
+            if not existing:
+                 return JSONResponse(status_code=404, content={"detail": "Glossary not found"})
+            else:
+                 # Assume invalid data if update failed but record exists
+                 return JSONResponse(status_code=400, content={"detail": "Failed to update glossary, potentially due to invalid data format."})
+
+    except json.JSONDecodeError:
+        return JSONResponse(status_code=400, content={"detail": "Invalid JSON format"})
+    except Exception as e:
+        logger.exception(f"Error updating user glossary {glossary_id}:")
+        return JSONResponse(status_code=500, content={"detail": f"Internal server error: {e}"})
+
+
+@app.delete("/glossaries/{glossary_id}", tags=["Glossaries"])
+async def delete_single_user_glossary(glossary_id: str):
+    """Delete a user-managed glossary."""
+    try:
+        success = await delete_user_glossary(glossary_id)
+        if success:
+            return {"detail": "Glossary deleted successfully"}
+        else:
+            return JSONResponse(status_code=404, content={"detail": "Glossary not found or deletion failed"})
+    except Exception as e:
+        logger.exception(f"Error deleting user glossary {glossary_id}:")
+        return JSONResponse(status_code=500, content={"detail": f"Internal server error: {e}"})
+
+
+@app.post("/glossaries/{glossary_id}/default", tags=["Glossaries"])
+async def set_glossary_as_default(glossary_id: str):
+    """Set a specific user-managed glossary as the default."""
+    try:
+        success = await set_default_glossary(glossary_id)
+        if success:
+            return {"detail": f"Glossary {glossary_id} set as default"}
+        else:
+            # Check if it exists for a better error message
+            existing = await get_user_glossary(glossary_id)
+            if not existing:
+                 return JSONResponse(status_code=404, content={"detail": "Glossary not found"})
+            else:
+                 # Could be DB constraint issue or other error
+                 return JSONResponse(status_code=500, content={"detail": "Failed to set glossary as default"})
+    except Exception as e:
+        logger.exception(f"Error setting default glossary {glossary_id}:")
+        return JSONResponse(status_code=500, content={"detail": f"Internal server error: {e}"})
+
 
 # --- SSE Streaming Endpoint for Translation Progress ---
 @app.get("/translate_graph/stream")
