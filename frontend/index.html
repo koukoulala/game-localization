@@ -197,7 +197,7 @@
                                 <option :value="glossary.glossary_id" x-text="glossary.name + (glossary.is_default ? ' (Default)' : '')"></option>
                             </template>
                         </select>
-                        <p class="mt-1 text-xs text-[var(--text-muted)]">Select a saved glossary or choose 'None' to use automatic term extraction.</p>
+                        <p class="mt-1 text-xs text-[var(--text-muted)]">Select a saved glossary or choose 'None' to use automatic term extraction. This option will automatically unify all technical terms and names accross the translated file</p>
                         <p class="mt-1 text-xs text-indigo-600" x-show="selectedGlossaryId === ''">Using: Default Glossary (if available)</p>
                         <p class="mt-1 text-xs text-orange-600" x-show="selectedGlossaryId === 'none'">Using: Automatic Term Extraction</p>
                         <template x-if="selectedGlossaryId && selectedGlossaryId !== 'none'">
