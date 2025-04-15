@@ -24,7 +24,16 @@ Turjuman uses a smart pipeline powered by LangGraph 🦜🔗:
 
 ```mermaid
 flowchart TD
-    A([🚀 init_translation<br><sub>Initialize translation state and configs</sub>]) --> B([🧐 terminology_unification<br><sub>Extract key terms, unify glossary, prepare context</sub>])
+    A([🚀 init_translation<br><sub>Initialize translation state and configs</sub>]) --> AA{User Glossary?}
+    
+    %% Glossary path decision
+    AA -->|Yes| AB([📘 User Glossary<br><sub>Use provided glossary terms</sub>])
+    AA -->|No| AC([🔍 Auto Extract<br><sub>Extract key terms from document</sub>])
+    
+    %% Both paths lead to terminology unification
+    AB --> B([🧐 terminology_unification<br><sub>Unify glossary, prepare context</sub>])
+    AC --> B
+    
     B --> C([✂️ chunk_document<br><sub>Split the book into manageable chunks</sub>])
 
     %% Chunking produces multiple chunks
@@ -92,7 +101,6 @@ docker run --rm -it \
    -v "$(pwd):/app/" \
   --network bridge \
   -p 8051:8051 \
-  --env-file sample.env.file \
   --add-host host.docker.internal:host-gateway \
   turjuman-book-translator
 ```

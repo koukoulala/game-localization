@@ -73,7 +73,12 @@ document.addEventListener('alpine:init', () => {
         currentGlossary: { // For the create/edit form
             glossary_id: null,
             name: '',
-            glossary_json_string: '', // Store as string for textarea editing
+            terms: [], // Array to hold term objects: [{ sourceTerm: '...', proposedTranslations: { 'lang': '...' } }, ...]
+            glossary_json_string: '', // Store as string for textarea editing, kept in sync with terms array
+        },
+        newTerm: { // For the add term input fields
+            source: '',
+            target: ''
         },
         glossaryFilename: '', // Name of the uploaded file
         glossaryError: '', // Error message for glossary form
@@ -183,6 +188,11 @@ document.addEventListener('alpine:init', () => {
                     }
                 }
             });
+
+            // Watch for changes in the terms array and update the JSON string
+            this.$watch('currentGlossary.terms', () => {
+                this.updateGlossaryJsonString();
+            }, { deep: true }); // Use deep watch for array changes
         },
 
         async fetchProviders() {
@@ -932,31 +942,140 @@ connectToJobStream(jobId) {
             }
         },
 
+        // --- Glossary Management Methods ---
+        determineGlossaryTargetLang() {
+            // Simple approach: Use the target language from the main config.
+            // TODO: Consider making this more robust, e.g., infer from existing terms or make it configurable per glossary.
+            return this.inputData.config.target_lang || 'target_lang';
+        },
+
+        updateGlossaryJsonString() {
+            try {
+                this.currentGlossary.glossary_json_string = JSON.stringify(this.currentGlossary.terms || [], null, 2);
+                this.glossaryError = ''; // Clear error if stringify succeeds
+            } catch (e) {
+                console.error("Error stringifying glossary terms:", e);
+                this.glossaryError = "Internal error: Could not format glossary terms.";
+                // Keep the old string? Or set to empty? Let's keep it for now.
+            }
+        },
+
+        parseGlossaryJsonString(jsonString) {
+            try {
+                const parsed = JSON.parse(jsonString || '[]');
+                if (Array.isArray(parsed)) {
+                    const targetLang = this.determineGlossaryTargetLang(); // Get the target language
+                    // Map the parsed terms to the structure used internally { sourceTerm: '...', proposedTranslations: { 'lang': '...' } }
+                    // The UI rendering logic will handle displaying the correct translation based on targetLang
+                    this.currentGlossary.terms = parsed.map(term => {
+                        if (term && typeof term.sourceTerm === 'string' && typeof term.proposedTranslations === 'object' && term.proposedTranslations !== null) {
+                            // Ensure proposedTranslations is always an object, even if empty in the file
+                            const translations = term.proposedTranslations || {};
+                            // Return the standard internal structure
+                            return {
+                                sourceTerm: term.sourceTerm,
+                                proposedTranslations: translations
+                            };
+                        }
+                        return null; // Filter out invalid entries later
+                    }).filter(term => term !== null); // Remove null entries from invalid items
+
+                    this.glossaryError = ''; // Clear error on success
+                } else {
+                    throw new Error("JSON is not an array.");
+                }
+            } catch (e) {
+                console.error("Error parsing glossary JSON:", e);
+                this.glossaryError = `Invalid JSON format: ${e.message}. Please check the structure.`;
+                this.currentGlossary.terms = []; // Reset terms on error
+            }
+        },
+
+        addGlossaryTerm() {
+            if (!this.newTerm.source || !this.newTerm.target) {
+                this.glossaryError = "Both source and target terms are required.";
+                return;
+            }
+            const targetLang = this.determineGlossaryTargetLang();
+            const newEntry = {
+                sourceTerm: this.newTerm.source.trim(),
+                proposedTranslations: {
+                    "default": this.newTerm.target.trim() // Always use "default" as the key
+                }
+            };
+
+            // Ensure terms array exists before checking for duplicates
+            if (!Array.isArray(this.currentGlossary.terms)) {
+                console.error("Error: currentGlossary.terms is not an array! Initializing.", this.currentGlossary);
+                this.glossaryError = "Internal error: Glossary data structure invalid. Initializing.";
+                this.currentGlossary.terms = []; // Initialize as fallback
+            }
+
+            // Avoid adding duplicates (simple check based on sourceTerm)
+            if (this.currentGlossary.terms.some(term => term.sourceTerm === newEntry.sourceTerm)) {
+                 this.glossaryError = `Source term "${newEntry.sourceTerm}" already exists.`;
+                 return;
+            }
+
+            // Check again if terms is an array before pushing
+            if (Array.isArray(this.currentGlossary.terms)) {
+                 this.currentGlossary.terms.push(newEntry);
+                 // The watcher will call updateGlossaryJsonString automatically
+            } else {
+                 console.error("Error: Failed to push to currentGlossary.terms as it's still not an array.");
+                 this.glossaryError = "Internal error: Could not add term.";
+                 return; // Prevent further issues
+            }
+
+            // Clear input fields
+            this.newTerm.source = '';
+            this.newTerm.target = '';
+            this.glossaryError = ''; // Clear any previous error
+        },
+
+        removeGlossaryTerm(index) {
+            if (index >= 0 && index < this.currentGlossary.terms.length) {
+                this.currentGlossary.terms.splice(index, 1);
+                // The watcher will call updateGlossaryJsonString automatically
+            }
+        },
+
         handleGlossaryFileUpload(event) {
             const file = event.target.files[0];
             if (file) {
                 this.glossaryFilename = file.name;
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    this.currentGlossary.glossary_json_string = e.target.result;
-                    this.glossaryError = ''; // Clear error on new file load
+                    const jsonString = e.target.result;
+                    this.currentGlossary.glossary_json_string = jsonString; // Store the raw string first
+                    this.parseGlossaryJsonString(jsonString); // Attempt to parse into the terms array
+                    // If parsing fails, parseGlossaryJsonString will set the error and clear terms
                 };
                 reader.onerror = (e) => {
                     console.error("Error reading glossary file:", e);
-                    this.glossaryError = "Error reading glossary file.";
+                    this.glossaryError = "Error reading file.";
                     this.glossaryFilename = '';
+                    this.currentGlossary.terms = []; // Ensure terms is reset on error
+                    this.currentGlossary.glossary_json_string = ''; // Clear string on error
                 };
                 reader.readAsText(file);
             }
         },
 
         resetCurrentGlossary() {
-            this.currentGlossary = { glossary_id: null, name: '', glossary_json_string: '' };
+            this.currentGlossary = {
+                glossary_id: null,
+                name: '',
+                terms: [], // Reset terms array
+                glossary_json_string: '[]', // Reset JSON string
+            };
+            this.newTerm = { source: '', target: '' }; // Reset input fields
             this.glossaryFilename = '';
             this.glossaryError = '';
-            // Reset file input visually if possible (trickier)
+            // Reset file input visually
             const fileInput = document.getElementById('glossary-file-upload');
             if (fileInput) fileInput.value = null;
+            // No need to call updateGlossaryJsonString, watcher handles it if terms change, or it's set directly
         },
 
         async saveUserGlossary() {
@@ -964,31 +1083,17 @@ connectToJobStream(jobId) {
             let parsedGlossaryData;
 
             // 1. Parse and Validate JSON string
-            try {
-                if (!this.currentGlossary.glossary_json_string.trim()) {
-                    this.glossaryError = "Glossary JSON cannot be empty.";
-                    return;
-                }
-                parsedGlossaryData = JSON.parse(this.currentGlossary.glossary_json_string);
-
-                if (!Array.isArray(parsedGlossaryData)) {
-                    this.glossaryError = "Glossary data must be a valid JSON array.";
-                    return;
-                }
-
-                // Basic structure validation
-                for (let i = 0; i < parsedGlossaryData.length; i++) {
-                    const entry = parsedGlossaryData[i];
-                    if (typeof entry !== 'object' || entry === null || !entry.sourceTerm || typeof entry.sourceTerm !== 'string' || !entry.proposedTranslations || typeof entry.proposedTranslations !== 'object') {
-                        this.glossaryError = `Invalid entry format at index ${i}. Each entry must be an object with 'sourceTerm' (string) and 'proposedTranslations' (object).`;
-                        return;
-                    }
-                }
-
-            } catch (e) {
-                this.glossaryError = `Invalid JSON format: ${e.message}`;
+            // We will now use the terms array directly
+            if (!this.currentGlossary.name || !this.currentGlossary.name.trim()) {
+                this.glossaryError = "Glossary name cannot be empty.";
                 return;
             }
+            if (!Array.isArray(this.currentGlossary.terms) || this.currentGlossary.terms.length === 0) {
+                this.glossaryError = "Glossary must contain at least one term.";
+                return;
+            }
+            // Basic validation could be added here if needed, but the add/remove functions should maintain structure.
+            parsedGlossaryData = this.currentGlossary.terms; // Use the terms array directly
 
             // 2. Prepare request data
             const glossaryPayload = {
@@ -1040,6 +1145,7 @@ connectToJobStream(jobId) {
                 this.currentGlossary = {
                     glossary_id: glossaryData.glossary_id,
                     name: glossaryData.name,
+                    terms: glossaryData.glossary_data || [], // Populate the terms array for the UI
                     // Pretty-print JSON for editing
                     glossary_json_string: JSON.stringify(glossaryData.glossary_data || [], null, 2)
                 };

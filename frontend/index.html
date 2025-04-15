@@ -193,7 +193,6 @@
                         <label for="glossary_select" class="block text-sm font-medium">Select Glossary:</label>
                         <select id="glossary_select" x-model="selectedGlossaryId" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                             <option value="none">None (Use Terminology Extraction)</option>
-                            <option value="">Default Glossary (if set)</option>
                             <template x-for="glossary in userGlossaries" :key="glossary.glossary_id">
                                 <option :value="glossary.glossary_id" x-text="glossary.name + (glossary.is_default ? ' (Default)' : '')"></option>
                             </template>
@@ -391,22 +390,66 @@
 
                 <!-- Create/Edit Glossary Form -->
                 <div class="card">
-                    <h3 class="text-lg font-semibold mb-3" x-text="currentGlossary.glossary_id ? 'Edit Glossary' : 'Create New Glossary'">Create New Glossary</h3>
+                    <h3 class="text-lg font-semibold mb-3" x-text="currentGlossary.glossary_id ? 'Edit Glossary' : 'Create New Glossary Table'">Create New Glossary Table</h3>
                     <div class="space-y-3">
                         <div>
-                            <label for="glossary_name" class="block text-sm font-medium">Glossary Name:</label>
+                            <label for="glossary_name" class="block text-sm font-medium">Glossary Table Name:</label>
                             <input type="text" id="glossary_name" x-model="currentGlossary.name" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Enter a name for this glossary">
                         </div>
                         <div>
-                            <label for="glossary-file-upload" class="block text-sm font-medium mb-1">Upload Glossary JSON File:</label>
+                            <label for="glossary-file-upload" class="block text-sm font-medium mb-1">Upload Glossary JSON File: 'example: [{"sourceTerm": "example", "proposedTranslations": {"target_lang": "translation"}}, ...]'</label>
                             <input id="glossary-file-upload" type="file" @change="handleGlossaryFileUpload($event)" accept=".json" class="block w-full text-sm text-[var(--text-muted)] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[var(--bg-tertiary)] file:text-[var(--text-primary)] hover:file:bg-opacity-80">
                             <p x-show="glossaryFilename" class="mt-1 text-sm text-[var(--text-muted)]">Selected file: <span x-text="glossaryFilename"></span></p>
                         </div>
+                        <!-- New Term Input Section -->
                         <div>
-                            <label for="glossary_json_editor" class="block text-sm font-medium">Or Paste/Edit JSON:</label>
-                            <textarea id="glossary_json_editor" x-model="currentGlossary.glossary_json_string" rows="10" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm font-mono" placeholder='[{"sourceTerm": "example", "proposedTranslations": {"target_lang": "translation"}}, ...]'>
-                            </textarea>
-                            <p class="mt-1 text-xs text-[var(--text-muted)]">Format: Array of objects, each with "sourceTerm" (string) and "proposedTranslations" (object like {"lang_code": "term"}).</p>
+                            <label class="block text-sm font-medium">Add Glossary Terms:</label>
+                            <div class="mt-1 flex space-x-2 items-end">
+                                <div class="flex-grow">
+                                    <label for="new_source_term" class="block text-xs font-medium text-[var(--text-muted)]">Source Term</label>
+                                    <input type="text" id="new_source_term" x-model="newTerm.source" class="block w-full rounded-md shadow-sm sm:text-sm" placeholder="Source term">
+                                </div>
+                                <div class="flex-grow">
+                                    <!-- TODO: Dynamically determine target language key -->
+                                    <label for="new_target_term" class="block text-xs font-medium text-[var(--text-muted)]">Target Term (<span x-text="determineGlossaryTargetLang() || 'target_lang'"></span>)</label>
+                                    <input type="text" id="new_target_term" x-model="newTerm.target" class="block w-full rounded-md shadow-sm sm:text-sm" placeholder="Target translation">
+                                </div>
+                                <button @click="addGlossaryTerm()" :disabled="!newTerm.source || !newTerm.target" class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">Add</button>
+                            </div>
+                        </div>
+
+                        <!-- Display Added Terms -->
+                        <div class="mt-4">
+                            <h4 class="text-md font-semibold mb-2">Current Terms (<span x-text="currentGlossary.terms ? currentGlossary.terms.length : 0"></span>):</h4>
+                            <div class="max-h-60 overflow-y-auto border border-[var(--border-color)] rounded-md">
+                                <table class="min-w-full divide-y divide-[var(--border-color)]">
+                                    <thead class="bg-[var(--bg-tertiary)] sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Source</th>
+                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Target (<span x-text="determineGlossaryTargetLang() || 'target_lang'"></span>)</th>
+                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-[var(--border-color)]">
+                                        <template x-for="(term, index) in currentGlossary.terms" :key="index">
+                                            <tr>
+                                                <td class="px-4 py-2 text-sm" x-text="term.sourceTerm"></td>
+                                                <!-- TODO: Dynamically determine target language key -->
+                                                <td class="px-4 py-2 text-sm" x-text="term.proposedTranslations['default'] || Object.values(term.proposedTranslations)[0] || ''"></td>
+                                                <td class="px-4 py-2 text-sm space-x-2">
+                                                    <!-- Edit button (optional for now, can add later) -->
+                                                    <button @click="removeGlossaryTerm(index)" class="text-red-600 hover:text-red-900">Delete</button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                        <template x-if="!currentGlossary.terms || currentGlossary.terms.length === 0">
+                                            <tr>
+                                                <td colspan="3" class="px-4 py-3 text-center text-sm text-[var(--text-muted)]">No terms added yet. Use the fields above or upload a file.</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                         <div class="flex space-x-2">
                             <button @click="saveUserGlossary" :disabled="!currentGlossary.name || !currentGlossary.glossary_json_string" class="inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
