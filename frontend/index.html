@@ -828,9 +828,12 @@
                     <p class="text-sm" x-text="selectedJob?.error_info"></p>
                 </div>
                 
-                <div x-show="selectedJob?.status === 'completed'" class="mb-4">
-                    <button @click="downloadTranslation(selectedJob?.job_id)" class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 mr-2">
+                <div x-show="selectedJob?.status === 'completed'" class="mb-4 space-x-2"> <!-- Added space-x-2 for button spacing -->
+                    <button @click="downloadTranslation(selectedJob?.job_id)" class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                         Download Translation
+                    </button>
+                    <button @click="downloadJobGlossary(selectedJob?.job_id)" class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"> <!-- Added glossary download button -->
+                        Download glossary
                     </button>
                     <button @click="deleteJob(selectedJob?.job_id); showJobHistory()" class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
                         Delete Job
