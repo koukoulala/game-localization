@@ -1,5 +1,3 @@
-# smart_chunker.py (Contains the class and can be run standalone for basic tests)
-
 import re
 import math # Not directly used now, but kept for potential future use
 
@@ -309,6 +307,3 @@ class SmartChunker:
                 report[type_key] = report.get(type_key, 0) + 1
         if report['unknown_chunks'] == 0: del report['unknown_chunks']
         return final_indexed_chunks, report
-
-
-# For testing, use the test_smartchunk_additional.py file
