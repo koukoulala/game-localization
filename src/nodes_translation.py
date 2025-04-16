@@ -29,14 +29,18 @@ def run_parallel_translation(state: TranslationState) -> TranslationState:
     NODE_NAME = "run_parallel_translation"
     update_progress(state, NODE_NAME, 20.0) # Example starting progress for this stage
 
+    # Get translatable chunks
     chunks = state.get("chunks")
     if not chunks:
-        log_to_state(state, "No chunks found to translate.", "ERROR", node=NODE_NAME)
-        state["error_info"] = "Cannot translate: Document was not chunked."
+        log_to_state(state, "No translatable chunks found to translate.", "ERROR", node=NODE_NAME)
+        state["error_info"] = "Cannot translate: No translatable chunks found."
         # Ensure translated_chunks is empty if chunks are missing
         state["translated_chunks"] = []
         return state
 
+    # Get chunks with metadata for reference
+    chunks_with_metadata = state.get("chunks_with_metadata", [])
+    
     if not state.get("translated_chunks"):
          # Initialize if chunking happened but this somehow got reset
          state["translated_chunks"] = [None] * len(chunks)
@@ -58,17 +62,22 @@ def run_parallel_translation(state: TranslationState) -> TranslationState:
         state_essentials = {
             "config": config,
             "contextualized_glossary": terminology, # Pass using the CORRECT key
-            "job_id": state.get("job_id") # Pass job_id for potential logging wetithin worker
+            "job_id": state.get("job_id") # Pass job_id for potential logging within worker
         }
-        term_in_essentials = state_essentials.get("contextualized_glossary", "MISSING") # Check the CORRECT key
-
-        # Add logging to check state_essentials before adding to worker_inputs
-        # log_to_state(state, f"Prepared state_essentials for chunk {i}. Terminology type: {type(term_in_essentials)}, Length: {len(term_in_essentials) if isinstance(term_in_essentials, list) else 'N/A'}", "DEBUG", node=NODE_NAME)
-
+        
+        # Get the original index from chunks_with_metadata if available
+        original_index = -1
+        if chunks_with_metadata:
+            for chunk_meta in chunks_with_metadata:
+                if chunk_meta["toTranslate"] and chunk_meta["chunkText"] == chunk_text:
+                    original_index = chunk_meta["index"]
+                    break
+        
         worker_inputs.append({
             "state": state_essentials,
             "chunk_text": chunk_text,
             "index": i,
+            "original_index": original_index,
             "total_chunks": total_chunks
         })
 

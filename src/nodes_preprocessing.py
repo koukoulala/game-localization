@@ -15,14 +15,14 @@ from langchain_core.output_parsers import StrOutputParser
 try:
     from .state import TranslationState, TerminologyEntry
     from .providers import get_llm_client
-    from .chunking import create_semantic_chunks
+    from .smartchunk import SmartChunker
     from .utils import log_to_state, update_progress
     from .exceptions import AuthenticationError, RateLimitError, APIError, handle_errors # Import exceptions and handler
     from .node_utils import safe_json_parse # Import utility
 except ImportError: # Fallback for potential direct script execution (less ideal)
     from .state import TranslationState, TerminologyEntry
     from .providers import get_llm_client
-    from .chunking import create_semantic_chunks
+    from .smartchunk import SmartChunker
     from .utils import log_to_state, update_progress
     from .exceptions import AuthenticationError, RateLimitError, APIError, handle_errors
     from .node_utils import safe_json_parse
@@ -162,13 +162,14 @@ def init_translation(state: TranslationState) -> TranslationState:
 def chunk_document(state: TranslationState) -> TranslationState:
     NODE_NAME = "chunk_document"
     update_progress(state, NODE_NAME, 10.0)
-    # Reverting to modify state directly and return full state
+    # Initialize state fields
     state["chunks"] = [] # Reset/initialize
     state["translated_chunks"] = [] # Also reset translated chunks array
+    state["non_translatable_chunks"] = [] # New field for non-translatable chunks
+    state["chunks_with_metadata"] = [] # New field for all chunks with metadata
 
     if not state.get('original_content'):
         log_to_state(state, "Original content is empty, cannot chunk.", "ERROR", node=NODE_NAME)
-        # state["error_info"] = "Cannot chunk empty content." # REMOVED direct state modification
         state["error_info"] = "Cannot chunk empty content."
         return state # Return full state on error
 
@@ -202,79 +203,60 @@ def chunk_document(state: TranslationState) -> TranslationState:
             min_size = default_min_size
             log_to_state(state, f"Non-integer MIN_CHUNK_SIZE env var, using default: {min_size}", "WARNING", node=NODE_NAME)
 
-        # Detect if content has code blocks or images and adjust chunk size if needed
-        has_code = "```" in content
-        has_images = "![" in content
-
-        if has_code or has_images:
-            # Use smaller chunks for content with code or images
-            suggested_size = min(max_size, 1200) # Example reduced size
-            if max_size > suggested_size:
-                log_to_state(state,
-                    f"Content contains code blocks or images. Reducing chunk size from {max_size} to {suggested_size} for better handling.",
-                    "INFO", node=NODE_NAME)
-                max_size = suggested_size
-
-        # Create chunks with the appropriate size
-        initial_chunks = create_semantic_chunks(content, max_chunk_size=max_size)
-
-        # --- Merge small chunks ---
-        merged_chunks = []
-        temp_chunk = ""
-        for i, chunk in enumerate(initial_chunks):
-            # Estimate length simply by character count for merging decision
-            current_len = len(chunk)
-            temp_len = len(temp_chunk)
-
-            if temp_chunk and (temp_len + current_len) <= max_size:
-                # If adding the current chunk doesn't exceed max_size, merge it
-                temp_chunk += "\n\n" + chunk # Add separator
-            elif current_len < min_size and i < len(initial_chunks) - 1:
-                # If the current chunk is too small (and not the last one), start merging
-                if temp_chunk: # Add previous temp_chunk if it exists
-                    merged_chunks.append(temp_chunk)
-                temp_chunk = chunk # Start a new temp_chunk with the small one
+        # Initialize SmartChunker and process the content
+        chunker = SmartChunker(min_chunk_size=min_size, max_chunk_size=max_size)
+        chunks_with_metadata, report = chunker.chunk(content)
+        
+        # Log chunking report
+        log_to_state(state, f"Chunking report: {report}, min_chunk_size:{min_size}, max_chunk_size:{max_size} ", "DEBUG", node=NODE_NAME)
+        
+        # Separate translatable and non-translatable chunks
+        translatable_chunks = []
+        non_translatable_chunks = []
+        
+        for chunk in chunks_with_metadata:
+            if chunk["toTranslate"]:
+                translatable_chunks.append(chunk)
             else:
-                # If the current chunk is large enough or merging would exceed max_size
-                if temp_chunk: # Add the previous temp_chunk first
-                    merged_chunks.append(temp_chunk)
-                    temp_chunk = "" # Reset temp_chunk
-                merged_chunks.append(chunk) # Add the current chunk
-
-        # Add any remaining temp_chunk
-        if temp_chunk:
-            merged_chunks.append(temp_chunk)
-
-        chunks = merged_chunks
-        log_to_state(state, f"Initial chunks: {len(initial_chunks)}, After merging small chunks (<{min_size}): {len(chunks)}", "DEBUG", node=NODE_NAME)
-
-        # Validate chunks to ensure code blocks aren't split (basic check)
-        validated_chunks = []
-        for chunk in chunks:
-            # Count opening and closing code fences
-            open_fences = chunk.count("```")
-            # If odd number of fences, the chunk might have split a code block
-            if open_fences % 2 != 0:
-                log_to_state(state,
-                    f"Detected potentially split code block in chunk (odd number of '```'). Review recommended.",
-                    "WARNING", node=NODE_NAME)
-                # More sophisticated validation could try to rejoin, but for now, just log.
-            validated_chunks.append(chunk)
-
-        state["chunks"] = validated_chunks
-        # Initialize translated_chunks only if chunking succeeds
-        state["translated_chunks"] = [None] * len(validated_chunks)
+                non_translatable_chunks.append(chunk)
+        
+        # Store all chunks with metadata for reassembly
+        state["chunks_with_metadata"] = chunks_with_metadata
+        
+        # Store translatable chunks for translation process
+        state["chunks"] = [chunk["chunkText"] for chunk in translatable_chunks]
+        
+        # Store non-translatable chunks for direct inclusion in final document
+        state["non_translatable_chunks"] = non_translatable_chunks
+        
+        # Initialize translated_chunks array
+        state["translated_chunks"] = [None] * len(translatable_chunks)
+        
+        # Log chunking results
         log_to_state(state,
-            f"Document split into {len(validated_chunks)} semantic chunks (max size ~{max_size}).",
+            f"Document split into {len(chunks_with_metadata)} chunks: {len(translatable_chunks)} translatable, {len(non_translatable_chunks)} non-translatable.",
             "INFO", node=NODE_NAME)
+        
+        # Log details about non-translatable chunks
+        if non_translatable_chunks:
+            type_counts = {}
+            for chunk in non_translatable_chunks:
+                chunk_type = chunk["chunkType"]
+                type_counts[chunk_type] = type_counts.get(chunk_type, 0) + 1
+            
+            log_to_state(state,
+                f"Non-translatable chunks by type: {type_counts}",
+                "INFO", node=NODE_NAME)
+            
     except Exception as e:
         error_msg = f"Critical error during document chunking: {type(e).__name__}: {e}"
         log_to_state(state, error_msg, "CRITICAL", node=NODE_NAME)
         state["error_info"] = error_msg # Chunking failure is critical
         state["chunks"] = [] # Ensure chunks list is empty on failure
         state["translated_chunks"] = []
+        state["non_translatable_chunks"] = []
+        state["chunks_with_metadata"] = []
 
-    # Return only the modified keys
     return state # Return the entire modified state
 
 
@@ -317,7 +299,11 @@ def terminology_unification(state: TranslationState) -> TranslationState:
             chunks = [content]
             log_to_state(state, f"Content length <= {min_size}, treating as a single chunk for terminology extraction.", "INFO", node=NODE_NAME)
         else:
-            initial_chunks = create_semantic_chunks(content, max_chunk_size=chunk_size)
+            # Initialize SmartChunker for terminology extraction
+            chunker = SmartChunker(min_chunk_size=min_size, max_chunk_size=chunk_size)
+            chunks_with_metadata, _ = chunker.chunk(content)
+            # Extract only the text content from translatable chunks
+            initial_chunks = [chunk["chunkText"] for chunk in chunks_with_metadata if chunk["toTranslate"]]
             log_to_state(state, f"Initial terminology chunks before merging: {len(initial_chunks)}", "DEBUG", node=NODE_NAME)
 
             # Merge small chunks similar to chunk_document

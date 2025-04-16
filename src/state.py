@@ -31,11 +31,13 @@ class TranslationState(TypedDict):
     logs: List[LogEntry]
 
     # Core data flow
-    chunks: Optional[List[str]]
+    chunks: Optional[List[str]]  # Translatable chunks text only
+    chunks_with_metadata: Optional[List[Dict[str, Any]]]  # All chunks with metadata
+    non_translatable_chunks: Optional[List[Dict[str, Any]]]  # Non-translatable chunks
     contextualized_glossary: Optional[List[Dict[str, Any]]]  # Enhanced terms with context
-    translated_chunks: Optional[List[Optional[str]]]  # Final translation chunks (deprecated - will be removed)
+    translated_chunks: Optional[List[Optional[str]]]  # Translated chunks
     parallel_worker_results: Optional[List[Dict[str, Any]]]  # Intermediate results
-    critiques: Optional[List[Dict[str, Any]]]  # Structured feedback from critique stage (plural)
+    critiques: Optional[List[Dict[str, Any]]]  # Structured feedback from critique stage
 
     # Output & Errors
     final_document: Optional[str]

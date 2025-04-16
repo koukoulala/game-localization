@@ -229,10 +229,12 @@ class SmartChunker:
                 preceding_text = text[last_end:start]
                 stripped_preceding = preceding_text.strip()
                 if stripped_preceding:
+                    # New rule: If chunk has less than 2 chars, it's considered non-translatable
+                    is_translatable = len(stripped_preceding) >= 2
                     potential_chunks.append({
-                        'text': stripped_preceding, 
-                        'type': 'text', 
-                        'translate': True,
+                        'text': stripped_preceding,
+                        'type': 'text',
+                        'translate': is_translatable,
                         'start': last_end,
                         'end': start
                     })
@@ -269,17 +271,19 @@ class SmartChunker:
             remaining_text = text[last_end:]
             stripped_remaining = remaining_text.strip()
             if stripped_remaining:
+                # New rule: If chunk has less than 2 chars, it's considered non-translatable
+                is_translatable = len(stripped_remaining) >= 2
                 potential_chunks.append({
-                    'text': stripped_remaining, 
-                    'type': 'text', 
-                    'translate': True,
+                    'text': stripped_remaining,
+                    'type': 'text',
+                    'translate': is_translatable,
                     'start': last_end,
                     'end': len(text)
                 })
         
         # Second pass: Process special cases
         
-        # First, identify bullet points or lists with multiple inline code segments
+        # First, identify bullet points or lists with multiple inline code segments or links
         bullet_points = []
         i = 0
         while i < len(potential_chunks):
@@ -287,6 +291,15 @@ class SmartChunker:
             if (potential_chunks[i]['type'] == 'text' and
                 (('-' in potential_chunks[i]['text'] and potential_chunks[i]['text'].strip().startswith('-')) or
                  ('*' in potential_chunks[i]['text'] and potential_chunks[i]['text'].strip().startswith('*')))):
+                
+                # Special case: Check if this is a bullet point followed by a link
+                if (i + 1 < len(potential_chunks) and
+                    potential_chunks[i+1]['type'] == 'url' and
+                    potential_chunks[i]['text'].strip() in ['-', '*']):
+                    # This is a bullet point with a link, merge them and ensure it's translatable
+                    bullet_points.append((i, i+1))
+                    i += 2
+                    continue
                 
                 # Check if this is followed by inline code and more text
                 bullet_start = i
@@ -340,9 +353,10 @@ class SmartChunker:
                     merged_text += " "
                 merged_text += potential_chunks[i]['text']
             
-            # Update the first chunk with the merged text
+            # Update the first chunk with the merged text and ensure it's translatable
             potential_chunks[start]['text'] = merged_text
             potential_chunks[start]['end'] = potential_chunks[end]['end']
+            potential_chunks[start]['translate'] = True  # Always make bullet points with links translatable
             
             # Remove the merged chunks
             for i in range(end, start, -1):

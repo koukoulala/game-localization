@@ -506,10 +506,27 @@ The end!"""
 
     chunks, report = default_chunker.chunk(text)
     
+    # Print chunks for debugging
+    print("\nChunks in complex document with base64:")
+    for i, chunk in enumerate(chunks):
+        print(f"Chunk {i}: {chunk['chunkType']} - {chunk['toTranslate']} - {chunk['chunkText'][:50]}...")
+    
+    # Print report for debugging
+    print("\nReport:", report)
+    
     # Verify all elements are correctly identified
     assert report['code_chunks'] >= 3  # Fenced code block, inline code, HTML code
     assert report['image_chunks'] >= 3  # 2 base64 images, 1 regular markdown image
-    assert report['url_chunks'] >= 3   # Link to Google, 2 standalone URLs
+    
+    # Note: Our improved algorithm now merges bullet points with URLs into a single chunk
+    # So we expect fewer URL chunks than before
+    assert report['url_chunks'] >= 1   # Link to Google
+    
+    # Check that the URLs are still present in the text
+    url_text = "".join(chunk['chunkText'] for chunk in chunks)
+    assert "https://google.com" in url_text
+    assert "http://example.com" in url_text
+    assert "www.example.org" in url_text
     
     # Find base64 images
     base64_images = [c for c in chunks if c['chunkType'] == 'image' and 'base64' in c['chunkText']]
@@ -913,3 +930,69 @@ def test_bullet_point_with_multiple_inline_code(default_chunker):
     assert "chuckText" in text_chunks[0]['chunkText']
     assert "toTranslate" in text_chunks[0]['chunkText']
     assert "chunkType" in text_chunks[0]['chunkText']
+
+def test_bullet_point_with_link(default_chunker):
+    """Test that bullet points with links are kept as a single chunk."""
+    text = """
+    - [News](https://brandeishoot.com/category/news/)
+    """
+    
+    chunks, report = default_chunker.chunk(text)
+    
+    # Print chunks for debugging
+    print("\nChunks for bullet point with link:")
+    for i, chunk in enumerate(chunks):
+        print(f"Chunk {i}: {chunk['chunkType']} - {chunk['toTranslate']} - {chunk['chunkText'][:50]}...")
+    
+    # We expect this to be a single translatable text chunk
+    text_chunks = [c for c in chunks if c['chunkType'] == 'text' and c['toTranslate']]
+    
+    # The text should be kept as a single chunk
+    assert len(chunks) == 1, f"Expected 1 chunk, got {len(chunks)}"
+    assert chunks[0]['toTranslate'] == True, "Expected chunk to be translatable"
+    assert "[News]" in chunks[0]['chunkText']
+    assert "https://brandeishoot.com" in chunks[0]['chunkText']
+
+def test_bullet_point_with_asterisk_and_link(default_chunker):
+    """Test that bullet points with asterisk and links are kept as a single chunk."""
+    text = """
+    * [News](https://brandeishoot.com/category/news/)
+    """
+    
+    chunks, report = default_chunker.chunk(text)
+    
+    # Print chunks for debugging
+    print("\nChunks for bullet point with asterisk and link:")
+    for i, chunk in enumerate(chunks):
+        print(f"Chunk {i}: {chunk['chunkType']} - {chunk['toTranslate']} - {chunk['chunkText'][:50]}...")
+    
+    # We expect this to be a single translatable text chunk
+    text_chunks = [c for c in chunks if c['chunkType'] == 'text' and c['toTranslate']]
+    
+    # The text should be kept as a single chunk
+    assert len(chunks) == 1, f"Expected 1 chunk, got {len(chunks)}"
+    assert chunks[0]['toTranslate'] == True, "Expected chunk to be translatable"
+    assert "* [News]" in chunks[0]['chunkText']
+    assert "https://brandeishoot.com" in chunks[0]['chunkText']
+
+def test_very_short_chunks_non_translatable(default_chunker):
+    """Test that chunks with less than 2 characters are considered non-translatable."""
+    text = """
+    a b c
+    """
+    
+    chunks, report = default_chunker.chunk(text)
+    
+    # Print chunks for debugging
+    print("\nChunks for very short text:")
+    for i, chunk in enumerate(chunks):
+        print(f"Chunk {i}: {chunk['chunkType']} - {chunk['toTranslate']} - {chunk['chunkText'][:50]}...")
+    
+    # We expect all single-character chunks to be non-translatable
+    for chunk in chunks:
+        if len(chunk['chunkText']) < 2:
+            assert chunk['toTranslate'] == False, f"Chunk '{chunk['chunkText']}' should be non-translatable"
+        else:
+            # Chunks with 2 or more characters should be translatable (if they're text)
+            if chunk['chunkType'] == 'text':
+                assert chunk['toTranslate'] == True, f"Chunk '{chunk['chunkText']}' should be translatable"

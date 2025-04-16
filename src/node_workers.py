@@ -34,6 +34,7 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
     # Escape curly braces to avoid prompt template errors
     chunk_text_escaped = chunk_text.replace("{", "{{").replace("}", "}}")
     index = worker_input.get("index", -1)
+    original_index = worker_input.get("original_index", -1)
     total_chunks = worker_input.get("total_chunks", 0)
 
     # Basic input validation
@@ -119,9 +120,10 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
                 "warning": warning_msg
             }
 
-        # Add chunk size and filtered term count to the result
+        # Add chunk size, filtered term count, and original index to the result
         return {
             "index": index,
+            "original_index": original_index,
             "translated_text": translated_text,
             "node_name": NODE_NAME,
             # "hallucination_warning": None, # Removed
@@ -152,6 +154,7 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
     original_chunk = worker_input.get("original_chunk", "")
     translated_chunk = worker_input.get("translated_chunk", "")
     index = worker_input.get("index", -1)
+    original_index = worker_input.get("original_index", -1)
     total_chunks = worker_input.get("total_chunks", 0)
 
     if not original_chunk or not translated_chunk or index == -1 or not isinstance(state_essentials.get('config'), dict):
@@ -233,6 +236,7 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
 
         return {
             "index": index,
+            "original_index": original_index,
             "critique": critique_data, # Parsed critique
             "node_name": NODE_NAME,
             "logs": temp_state_for_logging["logs"] # Include logs from safe_json_parse
@@ -258,6 +262,7 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
     translated_chunk = worker_input.get("translated_chunk", "")
     critique = worker_input.get("critique", {}) # Expecting parsed critique dict
     index = worker_input.get("index", -1)
+    original_index = worker_input.get("original_index", -1)
     total_chunks = worker_input.get("total_chunks", 0)
 
     # Input validation
@@ -333,6 +338,7 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         # Add relevant counts to the result
         return {
             "index": index,
+            "original_index": original_index,
             "refined_text": refined_text,
             "node_name": NODE_NAME,
             "prompt_char_count": len(formatted_finalize_prompt) if 'formatted_finalize_prompt' in locals() else 0, # Add prompt char count

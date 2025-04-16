@@ -30,8 +30,12 @@ def critique_node(state: TranslationState) -> TranslationState:
     NODE_NAME = "critique_node"
     update_progress(state, NODE_NAME, 65.0) # Example progress
 
+    # Get translatable chunks and their translations
     original_chunks = state.get("chunks")
     translated_chunks = state.get("translated_chunks")
+    
+    # Get chunks with metadata for reference
+    chunks_with_metadata = state.get("chunks_with_metadata", [])
 
     if not original_chunks or not translated_chunks or len(original_chunks) != len(translated_chunks):
         log_to_state(state, "Mismatch or missing chunks/translations for critique.", "ERROR", node=NODE_NAME)
@@ -69,11 +73,20 @@ def critique_node(state: TranslationState) -> TranslationState:
             "job_id": state.get("job_id"),
             "contextualized_glossary": state.get("contextualized_glossary", []) # Add glossary here
         }
+        # Get the original index from chunks_with_metadata if available
+        original_index = -1
+        if chunks_with_metadata:
+            for chunk_meta in chunks_with_metadata:
+                if chunk_meta["toTranslate"] and chunk_meta["chunkText"] == original_chunks[i]:
+                    original_index = chunk_meta["index"]
+                    break
+        
         worker_inputs.append({
             "state": state_essentials,
             "original_chunk": original_chunks[i],
             "translated_chunk": translated_chunks[i],
-            "index": i, # Use original index
+            "index": i, # Use worker index
+            "original_index": original_index, # Store original index from metadata
             "total_chunks": len(original_chunks) # Report total original chunks
         })
 
@@ -134,12 +147,15 @@ def final_translation_node(state: TranslationState) -> TranslationState:
     NODE_NAME = "final_translation_node"
     update_progress(state, NODE_NAME, 80.0) # Start after critique
 
+    # Get translatable chunks and their translations
     original_chunks = state.get("chunks")
     translated_chunks = state.get("translated_chunks")
     critiques = state.get("critiques")
+    
+    # Get chunks with metadata for reference
+    chunks_with_metadata = state.get("chunks_with_metadata", [])
 
     # Check if refinement is needed/possible
-
     if not original_chunks or not translated_chunks or not critiques or \
        len(original_chunks) != len(translated_chunks) or len(original_chunks) != len(critiques):
         log_to_state(state, "Mismatch or missing data for final refinement.", "ERROR", node=NODE_NAME)
@@ -172,12 +188,21 @@ def final_translation_node(state: TranslationState) -> TranslationState:
             "job_id": state.get("job_id"),
             "contextualized_glossary": state.get("contextualized_glossary", []) # Add glossary here
         }
+        # Get the original index from chunks_with_metadata if available
+        original_index = -1
+        if chunks_with_metadata:
+            for chunk_meta in chunks_with_metadata:
+                if chunk_meta["toTranslate"] and chunk_meta["chunkText"] == original_chunks[i]:
+                    original_index = chunk_meta["index"]
+                    break
+        
         worker_inputs.append({
             "state": state_essentials,
             "original_chunk": original_chunks[i],
             "translated_chunk": translated_chunks[i],
             "critique": critiques[i], # Pass the critique data
             "index": i,
+            "original_index": original_index,
             "total_chunks": len(original_chunks)
         })
 
@@ -227,34 +252,59 @@ def assemble_document(state: TranslationState) -> TranslationState:
     NODE_NAME = "assemble_document"
     update_progress(state, NODE_NAME, 98.0)
 
-    # Use 'final_chunks' if final_translation_node ran, otherwise fallback to 'translated_chunks'
-    chunks_to_assemble = state.get("final_chunks")
-    if chunks_to_assemble is None:
-        chunks_to_assemble = state.get("translated_chunks")
-
-    if not chunks_to_assemble:
-        log_to_state(state, "No translated chunks available to assemble.", "ERROR", node=NODE_NAME)
-        # Ensure error_info is treated as a string
+    # Get all chunks with metadata
+    chunks_with_metadata = state.get("chunks_with_metadata", [])
+    
+    # Get translated chunks
+    translated_chunks = state.get("final_chunks")
+    if translated_chunks is None:
+        translated_chunks = state.get("translated_chunks")
+    
+    # Get non-translatable chunks
+    non_translatable_chunks = state.get("non_translatable_chunks", [])
+    
+    if not chunks_with_metadata:
+        log_to_state(state, "No chunks metadata available for assembly.", "ERROR", node=NODE_NAME)
         current_error = state.get("error_info") or ""
-        state["error_info"] = current_error + (" | " if current_error else "") + "Cannot assemble document: No translated chunks."
+        state["error_info"] = current_error + (" | " if current_error else "") + "Cannot assemble document: Missing chunk metadata."
         state["final_document"] = None
         return state
-
-    # Check for None values (failed translations/refinements)
-    failed_indices = [i + 1 for i, chunk in enumerate(chunks_to_assemble) if chunk is None]
-    if failed_indices:
-        log_to_state(state, f"Assembling document with missing translations for chunks: {failed_indices}. Placeholder text might be used or chunks skipped.", "WARNING", node=NODE_NAME)
-        # Option 1: Join with placeholders
-        # final_content_list = [chunk if chunk is not None else f"[--- TRANSLATION FAILED FOR CHUNK {i+1} ---]" for i, chunk in enumerate(chunks_to_assemble)]
-        # Option 2: Filter out None values (might create disjointed text)
-        final_content_list = [chunk for chunk in chunks_to_assemble if chunk is not None]
-    else:
-        final_content_list = chunks_to_assemble
-
-    # Join the chunks back together.
-    # The separator used during chunking merge (`\n\n`) is a good candidate.
+    
+    if not translated_chunks and not non_translatable_chunks:
+        log_to_state(state, "No chunks available to assemble.", "ERROR", node=NODE_NAME)
+        current_error = state.get("error_info") or ""
+        state["error_info"] = current_error + (" | " if current_error else "") + "Cannot assemble document: No chunks available."
+        state["final_document"] = None
+        return state
+    
+    # Prepare all chunks for assembly
+    all_chunks = []
+    translatable_index = 0
+    
+    for chunk in chunks_with_metadata:
+        if chunk["toTranslate"]:
+            # Use translated content if available
+            if translatable_index < len(translated_chunks) and translated_chunks[translatable_index] is not None:
+                chunk_content = translated_chunks[translatable_index]
+            else:
+                # Fallback to original content if translation failed
+                chunk_content = chunk["chunkText"]
+                log_to_state(state,
+                    f"Warning: Using original content for translatable chunk {chunk['index']} due to missing translation",
+                    "WARNING", node=NODE_NAME)
+            translatable_index += 1
+        else:
+            # Use original content for non-translatable chunks
+            chunk_content = chunk["chunkText"]
+        
+        all_chunks.append({"index": chunk["index"], "content": chunk_content})
+    
+    # Sort by original index and join
+    sorted_chunks = sorted(all_chunks, key=lambda x: x["index"])
+    
+    # Join the chunks with appropriate separator
     separator = "\n\n"
-    final_document = separator.join(final_content_list)
+    final_document = separator.join([chunk["content"] for chunk in sorted_chunks])
 
     state["final_document"] = final_document
     log_to_state(state, f"Final document assembled successfully ({len(final_document)} characters).", "INFO", node=NODE_NAME)
