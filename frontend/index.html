@@ -754,12 +754,15 @@
                                     <td class="px-4 py-2 text-sm" x-text="job.started_at ? new Date(job.started_at).toLocaleString() : '-'"></td>
                                     <td class="px-4 py-2 text-sm" x-text="job.completed_at ? new Date(job.completed_at).toLocaleString() : '-'"></td>
                                     <td class="px-4 py-2 text-sm" x-text="job.completed_at && job.started_at ? calculateDurationString(new Date(job.started_at), new Date(job.completed_at)) : '-'"></td>
-                                    <td class="px-4 py-2 text-sm">
-                                        <button @click="fetchJobDetails(job.job_id)" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                                    <td class="px-4 py-2 text-sm space-x-2 whitespace-nowrap"> <!-- Added space-x-2 and whitespace-nowrap for better button spacing -->
+                                        <button @click="fetchJobDetails(job.job_id)" class="text-indigo-600 hover:text-indigo-900">
                                             View
                                         </button>
-                                        <button x-show="job.status === 'completed'" @click="downloadTranslation(job.job_id)" class="text-green-600 hover:text-green-900 mr-2">
-                                            Download
+                                        <button x-show="job.status === 'completed'" @click="downloadTranslation(job.job_id)" class="text-green-600 hover:text-green-900">
+                                            Download translation <!-- Renamed button -->
+                                        </button>
+                                        <button x-show="job.status === 'completed'" @click="downloadJobGlossary(job.job_id)" class="text-purple-600 hover:text-purple-900"> <!-- Added glossary download button -->
+                                            Download glossary
                                         </button>
                                         <button @click="deleteJob(job.job_id)" class="text-red-600 hover:text-red-900">
                                             Delete

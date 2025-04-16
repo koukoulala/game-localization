@@ -592,7 +592,18 @@ connectToJobStream(jobId) {
                 alert('Failed to delete job. Please try again.');
             }
         },
-        
+
+        downloadJobGlossary(jobId) {
+            if (!jobId) {
+                console.error("No job ID provided for glossary download.");
+                return;
+            }
+            const downloadUrl = `${this.apiUrl.replace(/\/$/, '')}/jobs/${jobId}/glossary/download`;
+            console.log(`Triggering glossary download from: ${downloadUrl}`);
+            // Trigger download by navigating to the endpoint
+            window.location.href = downloadUrl;
+        },
+
         showJobHistory() {
             this.viewMode = 'history';
             this.fetchJobHistory();

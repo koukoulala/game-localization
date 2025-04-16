@@ -322,6 +322,51 @@ async def download_job(job_id: str):
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
+@app.get("/jobs/{job_id}/glossary/download", tags=["Jobs"])
+async def download_job_glossary(job_id: str):
+    """Download the job-specific glossary as a JSON file."""
+    # Use aliased import
+    job = await db_get_job(job_id)
+    if not job:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Job not found"}
+        )
+
+    glossary_entries = await db_get_job_glossary(job_id)
+
+    if not glossary_entries:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Glossary not found for this job"}
+        )
+
+    # Format the glossary data for JSON output (optional, adjust as needed)
+    # Assuming db_get_job_glossary returns a list of dicts
+    formatted_glossary = [
+        {
+            "sourceTerm": entry.get("source_term"),
+            "proposedTranslations": {
+                "default": entry.get("target_term")
+            }
+        } for entry in glossary_entries
+    ]
+
+    # Determine filename
+    if job.get("filename"):
+        base_filename = job['filename']
+    else:
+        base_filename = f"job_{job_id}"
+    filename = f"{base_filename}_glossary.json"
+
+    # Return as downloadable JSON file
+    return Response(
+        content=json.dumps(formatted_glossary, indent=2, ensure_ascii=False),
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename=\"{filename}\""}
+    )
+
+
 @app.delete("/jobs/{job_id}", tags=["Jobs"])
 async def delete_job_endpoint(job_id: str):
     """Delete a job and all related data."""
