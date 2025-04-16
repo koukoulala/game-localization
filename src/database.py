@@ -509,12 +509,36 @@ async def get_logs(job_id: str, limit: int = 100, offset: int = 0) -> List[Dict[
         return [dict(row) for row in rows]
 
 # Glossary operations
-async def add_glossary_entry(job_id: str, source_term: str, target_term: str, 
-                            context: str = None, metadata: Dict[str, Any] = None) -> str:
-    """Add a glossary entry for a job."""
-    glossary_id = str(uuid.uuid4())
+async def add_glossary_entry(job_id: str, source_term: str, target_term: str,
+                           context: str = None, metadata: Dict[str, Any] = None) -> str:
+    """Add a glossary entry for a job. If an identical entry already exists, return its ID instead."""
+    metadata_json = json.dumps(metadata) if metadata else None
     
     async with aiosqlite.connect(DB_PATH) as db:
+        # First check if an identical entry already exists
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("""
+        SELECT glossary_id FROM job_glossary
+        WHERE job_id = ? AND source_term = ? AND target_term = ? AND
+              (context = ? OR (context IS NULL AND ? IS NULL)) AND
+              (metadata_json = ? OR (metadata_json IS NULL AND ? IS NULL))
+        """, (
+            job_id,
+            source_term,
+            target_term,
+            context, context,
+            metadata_json, metadata_json
+        ))
+        
+        existing_entry = await cursor.fetchone()
+        
+        if existing_entry:
+            # Return the existing glossary_id if a duplicate is found
+            return existing_entry['glossary_id']
+        
+        # No duplicate found, create a new entry
+        glossary_id = str(uuid.uuid4())
+        
         await db.execute("""
         INSERT INTO job_glossary (
             glossary_id, job_id, source_term, target_term, context, metadata_json
@@ -525,7 +549,7 @@ async def add_glossary_entry(job_id: str, source_term: str, target_term: str,
             source_term,
             target_term,
             context,
-            json.dumps(metadata) if metadata else None
+            metadata_json
         ))
         await db.commit()
     
