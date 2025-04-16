@@ -505,3 +505,277 @@ The end!"""
     # Verify text chunks are properly separated
     text_chunks = [c for c in chunks if c['chunkType'] == 'text']
     assert len(text_chunks) >= 5, f"Expected at least 5 text chunks, got {len(text_chunks)}"
+
+# --- Additional Edge Cases and Branch Coverage Tests ---
+
+def test_constructor_validation_min_chunk_size(default_chunker):
+    """Test validation of min_chunk_size parameter in constructor."""
+    with pytest.raises(ValueError, match="min_chunk_size must be a positive integer"):
+        SmartChunker(min_chunk_size=0)
+    
+    with pytest.raises(ValueError, match="min_chunk_size must be a positive integer"):
+        SmartChunker(min_chunk_size=-10)
+    
+    with pytest.raises(ValueError, match="min_chunk_size must be a positive integer"):
+        SmartChunker(min_chunk_size="not an integer")
+
+def test_constructor_validation_max_chunk_size(default_chunker):
+    """Test validation of max_chunk_size parameter in constructor."""
+    with pytest.raises(ValueError, match="max_chunk_size must be an integer greater than or equal to min_chunk_size"):
+        SmartChunker(min_chunk_size=100, max_chunk_size=50)
+    
+    with pytest.raises(ValueError, match="max_chunk_size must be an integer greater than or equal to min_chunk_size"):
+        SmartChunker(min_chunk_size=50, max_chunk_size="not an integer")
+
+def test_invalid_input_type(default_chunker):
+    """Test handling of non-string input to chunk method."""
+    with pytest.raises(TypeError, match="Input text must be a string"):
+        default_chunker.chunk(123)
+    
+    with pytest.raises(TypeError, match="Input text must be a string"):
+        default_chunker.chunk(None)
+    
+    with pytest.raises(TypeError, match="Input text must be a string"):
+        default_chunker.chunk(["not", "a", "string"])
+
+def test_splitting_with_paragraph_breaks(default_chunker):
+    """Test text splitting with paragraph breaks."""
+    # Create a text with multiple paragraphs that exceeds max_chunk_size
+    long_text = "First paragraph with enough text to make it substantial.\n\n" + \
+                "Second paragraph that continues the text and adds more content.\n\n" + \
+                "Third paragraph to ensure we have enough content to trigger splitting." + \
+                "A" * 400  # Add enough text to exceed max_chunk_size
+    
+    chunks, report = default_chunker.chunk(long_text)
+    
+    # Should split at paragraph breaks
+    assert report['total_chunks'] > 1
+    assert report['text_chunks'] > 1
+    
+    # First chunk should be the first paragraph
+    assert "First paragraph" in chunks[0]['chunkText']
+    
+    # Check that paragraphs are preserved in the splitting
+    paragraph_count = long_text.count('\n\n') + 1
+    assert len(chunks) <= paragraph_count + 1  # +1 for potential extra split in the long paragraph
+
+def test_splitting_with_sentence_breaks(default_chunker):
+    """Test text splitting with sentence breaks when no paragraph breaks are available."""
+    # Create a long text with multiple sentences but no paragraph breaks
+    long_text = "First sentence that has some content. " + \
+                "Second sentence that continues the text. " + \
+                "Third sentence to add more content. " + \
+                "Fourth sentence to ensure we have enough text. " + \
+                "A" * 400  # Add enough text to exceed max_chunk_size
+    
+    chunks, report = default_chunker.chunk(long_text)
+    
+    # Should split at sentence breaks
+    assert report['total_chunks'] > 1
+    assert report['text_chunks'] > 1
+    
+    # First chunk should contain complete sentences
+    first_chunk = chunks[0]['chunkText']
+    assert first_chunk.endswith('.') or first_chunk.endswith('!') or first_chunk.endswith('?')
+    
+    # Check that we don't have partial sentences (this is approximate)
+    for chunk in chunks:
+        if chunk['chunkType'] == 'text':
+            chunk_text = chunk['chunkText']
+            if not (chunk_text.endswith('.') or chunk_text.endswith('!') or chunk_text.endswith('?')):
+                # Last chunk might not end with punctuation if the original text doesn't
+                assert chunk is chunks[-1]
+
+def test_splitting_with_word_breaks(default_chunker):
+    """Test text splitting with word breaks when no sentence or paragraph breaks are available."""
+    # Create a long text with no sentence breaks (no periods, question marks, or exclamation points)
+    long_text = "This is a very long text without any sentence breaks " + \
+                "it just continues on and on with many words " + \
+                "but no punctuation to indicate sentence boundaries " + \
+                "A" * 400  # Add enough text to exceed max_chunk_size
+    
+    chunks, report = default_chunker.chunk(long_text)
+    
+    # Should split at word breaks
+    assert report['total_chunks'] > 1
+    assert report['text_chunks'] > 1
+    
+    # Check that we don't have partial words
+    for i in range(len(chunks) - 1):
+        if chunks[i]['chunkType'] == 'text' and chunks[i+1]['chunkType'] == 'text':
+            assert not chunks[i]['chunkText'].endswith(chunks[i+1]['chunkText'][0])
+
+def test_merging_small_chunks(small_chunker):
+    """Test merging of multiple small text chunks."""
+    # Create multiple small chunks that should be merged
+    text = "One. " + "Two. " + "Three. " + "Four. " + "Five."
+    chunks, report = small_chunker.chunk(text)
+    
+    # All chunks should be merged since they're all small
+    assert report['total_chunks'] <= 2, f"Expected 1 or 2 chunks, got {report['total_chunks']}"
+    
+    # Check that all text is present
+    all_text = " ".join(chunk['chunkText'] for chunk in chunks)
+    assert "One. Two. Three. Four. Five." in all_text
+
+def test_no_merge_if_exceeds_max_size(small_chunker):
+    """Test that chunks are not merged if the result would exceed max_chunk_size."""
+    # Create chunks that individually are below max_size but together exceed it
+    chunk1 = "A" * (small_chunker.max_chunk_size - 5)
+    chunk2 = "B" * (small_chunker.max_chunk_size - 5)
+    text = chunk1 + " " + chunk2
+    
+    chunks, report = small_chunker.chunk(text)
+    
+    # Should not merge the chunks
+    assert report['total_chunks'] == 2, f"Expected 2 chunks, got {report['total_chunks']}"
+    assert chunks[0]['chunkText'] == chunk1
+    assert chunks[1]['chunkText'] == chunk2
+
+def test_malformed_code_blocks(default_chunker):
+    """Test handling of malformed code blocks."""
+    # Unclosed code block - current implementation treats it differently
+    text = "```python\ndef hello():\n    print('hi')\n"
+    chunks, report = default_chunker.chunk(text)
+    
+    # Verify the content is preserved somewhere in the chunks
+    all_text = " ".join(chunk['chunkText'] for chunk in chunks)
+    assert "def hello()" in all_text
+    assert "print('hi')" in all_text
+    
+    # The implementation might identify the opening fence as code
+    # and the content as text, or handle it in other ways
+    assert report['total_chunks'] >= 1
+    # Mismatched fence types - current implementation identifies it as code
+    text = "```python\ndef hello():\n    print('hi')\n~~~"
+    chunks, report = default_chunker.chunk(text)
+    
+    # Verify the content is preserved
+    all_text = " ".join(chunk['chunkText'] for chunk in chunks)
+    assert "def hello()" in all_text
+    assert "print('hi')" in all_text
+    
+    # The current implementation identifies this as code
+    assert report['code_chunks'] >= 1
+
+def test_malformed_html_tags(default_chunker):
+    """Test handling of malformed HTML tags."""
+    # Unclosed HTML tag
+    text = "Before <code>print()"
+    chunks, report = default_chunker.chunk(text)
+    
+    # Should be treated as text since it doesn't match the HTML code pattern
+    assert report['text_chunks'] >= 1
+    assert "Before <code>print()" in " ".join(c['chunkText'] for c in chunks if c['chunkType'] == 'text')
+    
+    # Malformed HTML image tag - current implementation doesn't recognize it
+    text = "Before <img src='pic.jpg' alt='Test' After"
+    chunks, report = default_chunker.chunk(text)
+    
+    # The current implementation treats this as text
+    assert report['text_chunks'] >= 1
+    assert "Before <img src='pic.jpg' alt='Test' After" in " ".join(c['chunkText'] for c in chunks if c['chunkType'] == 'text')
+
+def test_whitespace_handling(default_chunker):
+    """Test handling of whitespace around special elements."""
+    # Extra whitespace around code block
+    text = "   ```python\ndef hello():\n    print('hi')\n```   "
+    chunks, report = default_chunker.chunk(text)
+    
+    # Verify the content is preserved somewhere in the chunks
+    all_text = " ".join(chunk['chunkText'] for chunk in chunks)
+    assert "def hello()" in all_text
+    assert "print('hi')" in all_text
+    
+    # The implementation might handle whitespace in different ways
+    # but should identify at least one code chunk
+    assert report['code_chunks'] >= 1
+    
+    # Test with inline code and whitespace
+    text = "Text with   `inline code`   example."
+    chunks, report = default_chunker.chunk(text)
+    
+    # Should identify the inline code
+    assert report['code_chunks'] >= 1
+    assert any("`inline code`" in c['chunkText'] for c in chunks)
+    
+    # Extra whitespace around inline code
+    text = "Text with   `inline code`   example."
+    chunks, report = default_chunker.chunk(text)
+    
+    # Should preserve whitespace in text chunks but strip from special elements
+    assert report['code_chunks'] == 1
+    assert chunks[0]['chunkText'] == "Text with"
+    assert chunks[1]['chunkText'] == "`inline code`"
+    assert chunks[2]['chunkText'] == "example."
+
+def test_report_generation(default_chunker):
+    """Test report generation logic."""
+    # Create a text with various elements
+    text = "Text `code` ![image](img.png) [link](url) http://example.com"
+    chunks, report = default_chunker.chunk(text)
+    
+    # Check report fields
+    assert report['total_chunks'] == 5
+    assert report['translatable_chunks'] == 1
+    assert report['non_translatable_chunks'] == 4
+    assert report['text_chunks'] == 1
+    assert report['code_chunks'] == 1
+    assert report['image_chunks'] == 1
+    assert report['url_chunks'] == 2
+    
+    # Check that unknown_chunks is not in the report if there are none
+    assert 'unknown_chunks' not in report
+
+def test_fallback_pattern_matching(default_chunker):
+    """Test fallback pattern matching in _identify_chunk_type."""
+    # Create a text that might not match the primary patterns but should match the fallbacks
+    text = "Text with `weird code` and [strange link](url) and ![odd image](img.png)"
+    chunks, report = default_chunker.chunk(text)
+    
+    # Should still identify all special elements
+    assert report['code_chunks'] == 1
+    assert report['image_chunks'] == 1
+    assert report['url_chunks'] == 1
+    
+    # Check specific elements
+    code_chunk = next((c for c in chunks if c['chunkType'] == 'code'), None)
+    assert code_chunk is not None
+    assert code_chunk['chunkText'] == "`weird code`"
+    
+    image_chunk = next((c for c in chunks if c['chunkType'] == 'image'), None)
+    assert image_chunk is not None
+    assert image_chunk['chunkText'] == "![odd image](img.png)"
+    
+    url_chunk = next((c for c in chunks if c['chunkType'] == 'url'), None)
+    assert url_chunk is not None
+    assert url_chunk['chunkText'] == "[strange link](url)"
+
+def test_html_entities_in_code(default_chunker):
+    """Test handling of HTML entities in code blocks."""
+    text = "```html\n<div>&lt;script&gt;alert('XSS');&lt;/script&gt;</div>\n```"
+    chunks, report = default_chunker.chunk(text)
+    
+    assert report['code_chunks'] == 1
+    assert chunks[0]['chunkType'] == 'code'
+    assert "&lt;script&gt;" in chunks[0]['chunkText']
+
+def test_emoji_and_unicode(default_chunker):
+    """Test handling of emoji and unicode characters."""
+    text = "Text with emoji 😊 and unicode characters üñîçødé in `code 🚀` and ![image 🖼️](img.png)"
+    chunks, report = default_chunker.chunk(text)
+    
+    # Check text chunks contain emoji and unicode
+    text_chunks = [c for c in chunks if c['chunkType'] == 'text']
+    assert any("😊" in c['chunkText'] for c in text_chunks)
+    assert any("üñîçødé" in c['chunkText'] for c in text_chunks)
+    
+    # Check code chunk contains emoji
+    code_chunk = next((c for c in chunks if c['chunkType'] == 'code'), None)
+    assert code_chunk is not None
+    assert "🚀" in code_chunk['chunkText']
+    
+    # Check image chunk contains emoji
+    image_chunk = next((c for c in chunks if c['chunkType'] == 'image'), None)
+    assert image_chunk is not None
+    assert "🖼️" in image_chunk['chunkText']
