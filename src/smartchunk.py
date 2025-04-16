@@ -67,6 +67,7 @@ class SmartChunker:
         )
 
         # 6. Inline Code (Backticks) - Less specific than blocks/tags
+        # Note: We'll handle inline code specially in the chunking process
         self.regex_code_inline = re.compile(r"`(.+?)`") # G1: Inline code content
 
         # 7. Standalone URLs - General pattern, comes last
@@ -85,6 +86,14 @@ class SmartChunker:
              """,
              re.IGNORECASE | re.VERBOSE
         )
+        
+        # 8. Footnote references - Should not be translated
+        self.regex_footnote_ref = re.compile(
+            r"""
+            ^\s*\[(\^[0-9]+)\]:      # G1: Footnote reference marker with optional leading whitespace (e.g., [^1]:)
+            """,
+            re.MULTILINE | re.VERBOSE
+        )
 
         # --- Create Named Pattern Dictionary ---
         # Use named patterns for better readability and maintainability
@@ -95,7 +104,8 @@ class SmartChunker:
             'markdown_image': self.regex_image_md,
             'markdown_link': self.regex_url_md_link,
             'inline_code': self.regex_code_inline,
-            'standalone_url': self.regex_url_standalone
+            'standalone_url': self.regex_url_standalone,
+            'footnote_ref': self.regex_footnote_ref
         }
         
         # Create a combined pattern for initial splitting
@@ -123,6 +133,8 @@ class SmartChunker:
                     return matched_text, "image", False
                 elif pattern_name == 'markdown_link' or pattern_name == 'standalone_url':
                     return matched_text, "url", False
+                elif pattern_name == 'footnote_ref':
+                    return matched_text, "footnote", False
         
         # Fallback to pattern characteristics if the pattern matching fails
         if matched_text.startswith(('```', '~~~')):
@@ -139,12 +151,13 @@ class SmartChunker:
             return matched_text, "code", False  # Inline code
         elif matched_text.startswith(('http://', 'https://', 'ftp://', 'www.')):
             return matched_text, "url", False  # Standalone URL
+        elif re.match(r'^\s*\[\^[0-9]+\]:', matched_text):
+            return matched_text, "footnote", False  # Footnote reference
         
         # Fallback
         print(f"Warning: Match found but no specific type identified for text: {matched_text[:100]}...")
         return matched_text, "unknown_error", False
 
-    # ... (_split_large_text_chunk method remains the same) ...
     def _split_large_text_chunk(self, text: str) -> list[str]:
         """
         Splits a text chunk larger than max_chunk_size.
@@ -200,7 +213,6 @@ class SmartChunker:
 
         return [c for c in chunks if c]
 
-    # ... (chunk method remains largely the same, relies on improved Step 1 logic) ...
     def chunk(self, text: str) -> tuple[list[dict], dict]:
         """ Performs the chunking operation """
         if not isinstance(text, str): raise TypeError("Input text must be a string.")
@@ -208,39 +220,196 @@ class SmartChunker:
         # Step 1: Initial Split using finditer (isolate all elements)
         raw_chunks = []
         last_end = 0
+        
+        # First pass: Identify all potential chunks
+        potential_chunks = []
         for match in self.combined_pattern.finditer(text):
             start, end = match.span()
             if start > last_end:
                 preceding_text = text[last_end:start]
                 stripped_preceding = preceding_text.strip()
                 if stripped_preceding:
-                    raw_chunks.append({'text': stripped_preceding, 'type': 'text', 'translate': True})
+                    potential_chunks.append({
+                        'text': stripped_preceding, 
+                        'type': 'text', 
+                        'translate': True,
+                        'start': last_end,
+                        'end': start
+                    })
+            
             try:
                 chunk_text_raw, chunk_type, translate_flag = self._identify_chunk_type(match)
-                # IMPORTANT: Keep original formatting for non-text chunks
-                if chunk_type == 'text':
-                    chunk_text_final = chunk_text_raw.strip()
-                else:
-                    # Preserve whitespace around special elements if needed?
-                    # For now, let's strip them too for consistency, but keep original match
-                    # chunk_text_final = chunk_text_raw # Keep original
-                    chunk_text_final = chunk_text_raw.strip() # Strip for now
-
+                chunk_text_final = chunk_text_raw.strip()
+                
                 if chunk_text_final:
-                    raw_chunks.append({'text': chunk_text_final, 'type': chunk_type, 'translate': translate_flag})
+                    potential_chunks.append({
+                        'text': chunk_text_final, 
+                        'type': chunk_type, 
+                        'translate': translate_flag,
+                        'start': start,
+                        'end': end,
+                        'raw': chunk_text_raw
+                    })
             except IndexError as e:
-                # Get the full matched text using a more descriptive approach
                 full_match_text = match.string[match.start():match.end()]
                 print(f"Error identifying chunk type for match: {full_match_text[:100]}... Error: {e}")
                 stripped_match = full_match_text.strip()
                 if stripped_match:
-                     raw_chunks.append({'text': stripped_match, 'type': 'unknown_error', 'translate': False})
+                    potential_chunks.append({
+                        'text': stripped_match, 
+                        'type': 'unknown_error', 
+                        'translate': False,
+                        'start': start,
+                        'end': end
+                    })
+            
             last_end = end
+        
         if last_end < len(text):
             remaining_text = text[last_end:]
             stripped_remaining = remaining_text.strip()
             if stripped_remaining:
-                raw_chunks.append({'text': stripped_remaining, 'type': 'text', 'translate': True})
+                potential_chunks.append({
+                    'text': stripped_remaining, 
+                    'type': 'text', 
+                    'translate': True,
+                    'start': last_end,
+                    'end': len(text)
+                })
+        
+        # Second pass: Process special cases
+        
+        # First, identify bullet points or lists with multiple inline code segments
+        bullet_points = []
+        i = 0
+        while i < len(potential_chunks):
+            # Look for text chunks that might be the start of a bullet point or list item
+            if (potential_chunks[i]['type'] == 'text' and
+                (('-' in potential_chunks[i]['text'] and potential_chunks[i]['text'].strip().startswith('-')) or
+                 ('*' in potential_chunks[i]['text'] and potential_chunks[i]['text'].strip().startswith('*')))):
+                
+                # Check if this is followed by inline code and more text
+                bullet_start = i
+                bullet_end = i
+                has_inline_code = False
+                
+                # Look ahead to find all related chunks
+                j = i + 1
+                while j < len(potential_chunks):
+                    # If we find inline code, mark it
+                    if potential_chunks[j]['type'] == 'code' and '`' in potential_chunks[j]['text'] and len(potential_chunks[j]['text']) < 50:
+                        has_inline_code = True
+                        bullet_end = j
+                    # If we find text that might be part of the same bullet point
+                    elif potential_chunks[j]['type'] == 'text' and (
+                        ',' in potential_chunks[j]['text'] or
+                        ' and ' in potential_chunks[j]['text'] or
+                        potential_chunks[j]['text'].strip().startswith('for') or
+                        potential_chunks[j]['text'].strip().startswith('to') or
+                        potential_chunks[j]['text'].strip().startswith('of')):
+                        bullet_end = j
+                    # If we find a new paragraph or another bullet point, stop
+                    elif potential_chunks[j]['type'] == 'text' and (
+                        '\n\n' in potential_chunks[j]['text'] or
+                        potential_chunks[j]['text'].strip().startswith('-') or
+                        potential_chunks[j]['text'].strip().startswith('*')):
+                        break
+                    else:
+                        # If it's not related to the bullet point, stop
+                        if j > bullet_end + 1:
+                            break
+                        bullet_end = j
+                    j += 1
+                
+                # If we found a bullet point with inline code, add it to our list
+                if has_inline_code and bullet_end > bullet_start:
+                    # Make sure this is actually a bullet point and not just text with a dash
+                    if potential_chunks[bullet_start]['text'].strip().startswith('-') or potential_chunks[bullet_start]['text'].strip().startswith('*'):
+                        bullet_points.append((bullet_start, bullet_end))
+                        i = bullet_end + 1
+                        continue
+            
+            i += 1
+        
+        # Now merge the identified bullet points
+        for start, end in sorted(bullet_points, reverse=True):  # Process in reverse to avoid index issues
+            # Merge all chunks in the bullet point into a single chunk
+            merged_text = ""
+            for i in range(start, end + 1):
+                if i > start:
+                    merged_text += " "
+                merged_text += potential_chunks[i]['text']
+            
+            # Update the first chunk with the merged text
+            potential_chunks[start]['text'] = merged_text
+            potential_chunks[start]['end'] = potential_chunks[end]['end']
+            
+            # Remove the merged chunks
+            for i in range(end, start, -1):
+                potential_chunks.pop(i)
+        
+        # Process remaining special cases
+        i = 0
+        while i < len(potential_chunks):
+            current = potential_chunks[i]
+            
+            # Special case: Inline code within bullet points or paragraphs (for any we missed)
+            if current['type'] == 'code' and '`' in current['text'] and len(current['text']) < 50:
+                # Check if this is part of a bullet point or list
+                is_in_bullet = False
+                is_in_list = False
+                
+                # Look at previous chunk
+                if i > 0 and potential_chunks[i-1]['type'] == 'text':
+                    prev_text = potential_chunks[i-1]['text']
+                    if prev_text.strip().endswith('-') or prev_text.strip().endswith('*'):
+                        is_in_bullet = True
+                    # Check if we're in a list (contains bullet points)
+                    if '-' in prev_text or '*' in prev_text:
+                        is_in_list = True
+                
+                # Look at next chunk
+                if i < len(potential_chunks) - 1 and potential_chunks[i+1]['type'] == 'text':
+                    next_text = potential_chunks[i+1]['text']
+                    if next_text.strip().startswith('for') or next_text.strip().startswith('to') or next_text.strip().startswith('of'):
+                        is_in_bullet = True
+                    # Check if we're in a list (contains commas, 'and', etc.)
+                    if ',' in next_text or ' and ' in next_text:
+                        is_in_list = True
+                
+                if is_in_bullet or is_in_list:
+                    # Merge with surrounding text
+                    if i > 0 and i < len(potential_chunks) - 1 and potential_chunks[i-1]['type'] == 'text' and potential_chunks[i+1]['type'] == 'text':
+                        # Merge previous, current, and next chunks
+                        merged_text = potential_chunks[i-1]['text'] + ' ' + current['text'] + ' ' + potential_chunks[i+1]['text']
+                        potential_chunks[i-1]['text'] = merged_text
+                        potential_chunks[i-1]['end'] = potential_chunks[i+1]['end']
+                        # Remove current and next chunks
+                        potential_chunks.pop(i)
+                        potential_chunks.pop(i)
+                        i -= 1  # Adjust index
+                    elif i > 0 and potential_chunks[i-1]['type'] == 'text':
+                        # Merge with previous chunk
+                        potential_chunks[i-1]['text'] += ' ' + current['text']
+                        potential_chunks[i-1]['end'] = current['end']
+                        potential_chunks.pop(i)
+                        i -= 1  # Adjust index
+                    elif i < len(potential_chunks) - 1 and potential_chunks[i+1]['type'] == 'text':
+                        # Merge with next chunk
+                        potential_chunks[i+1]['text'] = current['text'] + ' ' + potential_chunks[i+1]['text']
+                        potential_chunks[i+1]['start'] = current['start']
+                        potential_chunks.pop(i)
+                        i -= 1  # Adjust index
+            
+            i += 1
+        
+        # Convert potential_chunks to raw_chunks
+        for chunk in potential_chunks:
+            raw_chunks.append({
+                'text': chunk['text'],
+                'type': chunk['type'],
+                'translate': chunk['translate']
+            })
 
         # Step 2: Split large text chunks
         processed_chunks = []
@@ -252,42 +421,73 @@ class SmartChunker:
             elif chunk_info['text']:
                  processed_chunks.append(chunk_info)
 
-        # Step 3: Merge small consecutive text chunks
+        # Step 3: Merge consecutive chunks of the same type if they're small
         final_chunks = []
         i = 0
         while i < len(processed_chunks):
             current_chunk_info = processed_chunks[i]
+            
             if current_chunk_info['translate']:
-                # Special case for test_only_text_needs_merging
-                if (current_chunk_info['text'] == "Short." and i + 1 < len(processed_chunks) and
-                    processed_chunks[i + 1]['text'] == "Also short." and i + 2 < len(processed_chunks) and
-                    processed_chunks[i + 2]['text'] == "Merge these."):
-                    # Force merge all three chunks for this specific test case
-                    text_buffer = "Short. Also short. Merge these."
-                    i += 3
-                    final_chunks.append({'chunkText': text_buffer, 'toTranslate': True, 'chunkType': 'text', 'index': -1})
-                else:
-                    # Normal merging logic
-                    text_buffer = current_chunk_info['text']
-                    j = i + 1
-                    while j < len(processed_chunks) and processed_chunks[j]['translate']:
-                        next_text = processed_chunks[j]['text']
-                        separator = " " # Assume space needed between merged text parts
-                        potential_merged_len = len(text_buffer) + len(separator) + len(next_text)
-                        # Always merge if either chunk is smaller than min_chunk_size
-                        if len(text_buffer) < self.min_chunk_size or len(next_text) < self.min_chunk_size:
-                            text_buffer += separator + next_text
-                            j += 1
-                        # Otherwise, only merge if the combined size doesn't exceed max_chunk_size
-                        elif potential_merged_len <= self.max_chunk_size:
-                            text_buffer += separator + next_text
-                            j += 1
-                        else: break
-                    final_chunks.append({'chunkText': text_buffer, 'toTranslate': True, 'chunkType': 'text', 'index': -1})
-                    i = j
+                # Merging logic for translatable text chunks
+                text_buffer = current_chunk_info['text']
+                j = i + 1
+                
+                # Continue merging until we reach a non-translatable chunk or exceed max_chunk_size
+                while j < len(processed_chunks) and processed_chunks[j]['translate']:
+                    next_text = processed_chunks[j]['text']
+                    next_text_len = len(next_text)
+                    separator = " " # Assume space needed between merged text parts
+                    potential_merged_len = len(text_buffer) + len(separator) + next_text_len
+                    
+                    # Case 1: Always merge if either current buffer or next chunk is smaller than min_chunk_size
+                    # This ensures we try to merge small chunks together regardless of their position
+                    if len(text_buffer) < self.min_chunk_size or next_text_len < self.min_chunk_size:
+                        # Only stop merging if we would exceed max_chunk_size by a significant margin
+                        if potential_merged_len > self.max_chunk_size * 1.2:  # Allow some flexibility
+                            break
+                        text_buffer += separator + next_text
+                        j += 1
+                    # Case 2: If both chunks are large enough, only merge if it doesn't exceed max_chunk_size
+                    elif potential_merged_len <= self.max_chunk_size:
+                        text_buffer += separator + next_text
+                        j += 1
+                    # Case 3: We've reached max_chunk_size, stop merging
+                    else:
+                        break
+                
+                final_chunks.append({'chunkText': text_buffer, 'toTranslate': True, 'chunkType': 'text', 'index': -1})
+                i = j
             else:
-                final_chunks.append({'chunkText': current_chunk_info['text'], 'toTranslate': False, 'chunkType': current_chunk_info['type'], 'index': -1})
-                i += 1
+                # For non-translatable chunks, we'll be more conservative with merging
+                # Only merge if they're consecutive, of the same type, and both are very small
+                current_type = current_chunk_info['type']
+                
+                # Special handling for URL, image, and code chunks - don't merge these
+                # as they often need to be preserved separately
+                if current_type in ['url', 'image', 'code', 'footnote']:
+                    final_chunks.append({'chunkText': current_chunk_info['text'], 'toTranslate': False, 'chunkType': current_type, 'index': -1})
+                    i += 1
+                else:
+                    # For other non-translatable chunks, apply merging logic
+                    content_buffer = current_chunk_info['text']
+                    j = i + 1
+                    
+                    # Continue merging until we reach a different type chunk
+                    while j < len(processed_chunks) and not processed_chunks[j]['translate'] and processed_chunks[j]['type'] == current_type:
+                        next_content = processed_chunks[j]['text']
+                        next_content_len = len(next_content)
+                        separator = " " # Assume space needed between merged parts
+                        potential_merged_len = len(content_buffer) + len(separator) + next_content_len
+                        
+                        # Only merge if both chunks are very small (less than half the min_chunk_size)
+                        if len(content_buffer) < self.min_chunk_size / 2 and next_content_len < self.min_chunk_size / 2:
+                            content_buffer += separator + next_content
+                            j += 1
+                        else:
+                            break
+                    
+                    final_chunks.append({'chunkText': content_buffer, 'toTranslate': False, 'chunkType': current_type, 'index': -1})
+                    i = j
 
         # Step 4: Final indexing and report
         report = { 'total_chunks': 0, 'translatable_chunks': 0, 'non_translatable_chunks': 0, 'text_chunks': 0, 'code_chunks': 0, 'image_chunks': 0, 'url_chunks': 0, 'unknown_chunks': 0 }
