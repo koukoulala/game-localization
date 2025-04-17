@@ -3,17 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Turjuman - LLM Powered Books  & Long Text Translator</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms"></script> <!-- Tailwind CSS via CDN -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script> <!-- Alpine.js via CDN -->
-    <link rel="stylesheet" href="/static/css/style.css"> <!-- Link to custom styles -->
+    <title>Turjuman - LLM Powered Books & Long Text Translator</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        /* Basic theme variables */
+        /* Base theme variables */
         .theme-light { --bg-primary: #ffffff; --text-primary: #111827; --bg-secondary: #f9fafb; --bg-tertiary: #f3f4f6; --border-color: #e5e7eb; --text-muted: #6b7280; --link-color: #4f46e5; }
         .theme-dark { --bg-primary: #1f2937; --text-primary: #f3f4f6; --bg-secondary: #374151; --bg-tertiary: #4b5563; --border-color: #4b5563; --text-muted: #9ca3af; --link-color: #818cf8; }
         .theme-yellow { --bg-primary: #fefce8; --text-primary: #422006; --bg-secondary: #fef9c3; --bg-tertiary: #fef3c7; --border-color: #fde68a; --text-muted: #7c2d12; --link-color: #c2410c; }
         .theme-grey { --bg-primary: #f3f4f6; --text-primary: #222222; --bg-secondary: #e5e7eb; --bg-tertiary: #d1d5db; --border-color: #9ca3af; --text-muted: #6b7280; --link-color: #374151; }
-
+        .theme-teal { --bg-primary: #f0fdfa; --text-primary: #134e4a; --bg-secondary: #ccfbf1; --bg-tertiary: #99f6e4; --border-color: #5eead4; --text-muted: #0f766e; --link-color: #0d9488; }
+        .theme-lavender { --bg-primary: #f5f3ff; --text-primary: #4c1d95; --bg-secondary: #ede9fe; --bg-tertiary: #ddd6fe; --border-color: #c4b5fd; --text-muted: #6d28d9; --link-color: #7c3aed; }
         .theme-cyberpunk-magenta {
             --bg-primary: #120018;
             --text-primary: #ff33ff;
@@ -41,121 +43,228 @@
             --text-muted: #ff33ff;
             --link-color: #00bfff;
         }
-        body { background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; font-family: 'Orbitron', 'Share Tech Mono', 'Consolas', monospace, sans-serif; }
-        .theme-cyberpunk-cyan .card, .theme-cyberpunk-cyan .tab, .theme-cyberpunk-cyan input, .theme-cyberpunk-cyan select, .theme-cyberpunk-cyan textarea, .theme-cyberpunk-cyan pre {
-            box-shadow: 0 0 8px #00fff7, 0 0 2px #ff33ff;
-            border: 2px solid var(--border-color) !important;
-            background-color: var(--bg-secondary) !important;
-            color: var(--text-primary) !important;
-            text-shadow: 0 0 4px #00fff7, 0 0 2px #ff33ff;
+
+        body { 
+            background-color: var(--bg-primary); 
+            color: var(--text-primary); 
+            transition: all 0.3s ease; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
-        .theme-cyberpunk-cyan label {
-            color: var(--text-muted) !important;
-            text-shadow: 0 0 2px #00fff7;
+        
+        .card { 
+            background-color: var(--bg-secondary); 
+            border: 1px solid var(--border-color); 
+            border-radius: 0.75rem; 
+            padding: 1.5rem; 
+            margin-bottom: 1rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .theme-cyberpunk-cyan .tab.active {
-            border-bottom-color: var(--link-color);
+        
+        .card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .tab { 
+            padding: 0.75rem 1.25rem; 
+            cursor: pointer; 
+            border-bottom: 2px solid transparent; 
+            color: var(--text-muted); 
+            transition: all 0.3s ease;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .tab:hover {
             color: var(--link-color);
-            font-weight: 700;
-            text-shadow: 0 0 6px #00fff7;
+            background-color: rgba(0, 0, 0, 0.04);
         }
-        .theme-cyberpunk-cyan .spinner {
-            border-top: 4px solid var(--link-color);
-            border: 4px solid var(--bg-tertiary);
+        
+        .tab.active { 
+            border-bottom-color: var(--link-color); 
+            color: var(--text-primary); 
+            font-weight: 600; 
         }
-        .theme-cyberpunk-cyan body, body.theme-cyberpunk-cyan {
-            background-image: repeating-linear-gradient(0deg, #00fff722 0 1px, transparent 1px 40px), repeating-linear-gradient(90deg, #00fff722 0 1px, transparent 1px 40px);
+        
+        label { 
+            color: var(--text-muted); 
+            font-weight: 500;
         }
-        .theme-cyberpunk-magenta .card, .theme-cyberpunk-magenta .tab, .theme-cyberpunk-magenta input, .theme-cyberpunk-magenta select, .theme-cyberpunk-magenta textarea, .theme-cyberpunk-magenta pre {
-            box-shadow: 0 0 8px #ff00cc, 0 0 2px #00fff7;
-            border: 2px solid var(--border-color) !important;
+        
+        input, select, textarea { 
+            background-color: var(--bg-primary) !important; 
+            border-color: var(--border-color) !important; 
+            color: var(--text-primary) !important; 
+            border-radius: 0.5rem !important;
+            transition: all 0.2s ease;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2) !important;
+        }
+        
+        textarea:disabled { 
+            background-color: var(--bg-tertiary) !important; 
+            opacity: 0.7;
+        }
+        
+        pre { 
+            background-color: var(--bg-tertiary); 
+            padding: 0.75rem; 
+            border-radius: 0.5rem; 
+            border: 1px solid var(--border-color); 
+            white-space: pre-wrap; 
+            word-wrap: break-word; 
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
+        /* Button styles */
+        button {
+            transition: all 0.2s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-1px);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        /* Modern spinner */
+        .spinner { 
+            border: 3px solid rgba(0, 0, 0, 0.1); 
+            border-radius: 50%; 
+            border-top: 3px solid var(--link-color); 
+            width: 1.5rem; 
+            height: 1.5rem; 
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+        
+        /* Tab animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .tab-content {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        /* Remove cyberpunk glowing effects */
+        .theme-cyberpunk-cyan .card, 
+        .theme-cyberpunk-cyan .tab, 
+        .theme-cyberpunk-cyan input, 
+        .theme-cyberpunk-cyan select, 
+        .theme-cyberpunk-cyan textarea, 
+        .theme-cyberpunk-cyan pre,
+        .theme-cyberpunk-magenta .card, 
+        .theme-cyberpunk-magenta .tab, 
+        .theme-cyberpunk-magenta input, 
+        .theme-cyberpunk-magenta select, 
+        .theme-cyberpunk-magenta textarea, 
+        .theme-cyberpunk-magenta pre,
+        .theme-cyberpunk-red .card, 
+        .theme-cyberpunk-red .tab, 
+        .theme-cyberpunk-red input, 
+        .theme-cyberpunk-red select, 
+        .theme-cyberpunk-red textarea, 
+        .theme-cyberpunk-red pre {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--border-color) !important;
             background-color: var(--bg-secondary) !important;
             color: var(--text-primary) !important;
-            text-shadow: 0 0 4px #ff33ff, 0 0 2px #00fff7;
+            text-shadow: none;
         }
-        .theme-cyberpunk-magenta label {
-            color: var(--text-muted) !important;
-            text-shadow: 0 0 2px #ff33ff;
-        }
-        .theme-cyberpunk-magenta .tab.active {
-            border-bottom-color: var(--link-color);
-            color: var(--link-color);
-            font-weight: 700;
-            text-shadow: 0 0 6px #00fff7;
-        }
-        .theme-cyberpunk-magenta .spinner {
-            border-top: 4px solid var(--link-color);
-            border: 4px solid var(--bg-tertiary);
-        }
-        .theme-cyberpunk-magenta body, body.theme-cyberpunk-magenta {
-            background-image: repeating-linear-gradient(0deg, #ff00cc22 0 1px, transparent 1px 40px), repeating-linear-gradient(90deg, #ff00cc22 0 1px, transparent 1px 40px);
-        }
-        .theme-cyberpunk-red .card, .theme-cyberpunk-red .tab, .theme-cyberpunk-red input, .theme-cyberpunk-red select, .theme-cyberpunk-red textarea, .theme-cyberpunk-red pre {
-            box-shadow: 0 0 8px #ff2222, 0 0 2px #ff3333;
-            border: 2px solid var(--border-color) !important;
-            background-color: var(--bg-secondary) !important;
-            color: var(--text-primary) !important;
-            text-shadow: 0 0 4px #ff3333, 0 0 2px #ff2222;
-        }
+        
+        .theme-cyberpunk-cyan label,
+        .theme-cyberpunk-magenta label,
         .theme-cyberpunk-red label {
             color: var(--text-muted) !important;
-            text-shadow: 0 0 2px #ff3333;
+            text-shadow: none;
         }
+        
+        .theme-cyberpunk-cyan .tab.active,
+        .theme-cyberpunk-magenta .tab.active,
         .theme-cyberpunk-red .tab.active {
             border-bottom-color: var(--link-color);
             color: var(--link-color);
-            font-weight: 700;
-            text-shadow: 0 0 6px #ff3333;
+            font-weight: 600;
+            text-shadow: none;
         }
-        .theme-cyberpunk-red .spinner {
-            border-top: 4px solid var(--link-color);
-            border: 4px solid var(--bg-tertiary);
+        
+        .theme-cyberpunk-cyan body,
+        .theme-cyberpunk-magenta body,
+        .theme-cyberpunk-red body {
+            background-image: none;
         }
-        .theme-cyberpunk-red body, body.theme-cyberpunk-red {
-            background-image: repeating-linear-gradient(0deg, #ff222222 0 1px, transparent 1px 40px), repeating-linear-gradient(90deg, #ff222222 0 1px, transparent 1px 40px);
+        
+        /* Footer */
+        .footer {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 0.875rem;
         }
-        .card { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem; }
-        .tab { padding: 0.5rem 1rem; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-muted); }
-        .tab.active { border-bottom-color: var(--link-color); color: var(--text-primary); font-weight: 600; }
-        label { color: var(--text-muted); }
-        input, select, textarea { background-color: var(--bg-primary) !important; border-color: var(--border-color) !important; color: var(--text-primary) !important; }
-        textarea:disabled { background-color: var(--bg-tertiary) !important; }
-        pre { background-color: var(--bg-tertiary); padding: 0.5rem; border-radius: 0.25rem; border: 1px solid var(--border-color); white-space: pre-wrap; word-wrap: break-word; }
-        /* Basic spinner */
-        .spinner { border: 4px solid var(--bg-tertiary); border-top: 4px solid var(--link-color); border-radius: 50%; width: 1.25rem; height: 1.25rem; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .footer a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body x-data="translationApp()" x-init="init()" :class="`theme-${theme}`" class="p-4 md:p-6">
-
     <div class="max-w-7xl mx-auto">
         <!-- Application Header -->
         <div class="mb-6">
-            <h1 class="text-3xl font-bold text-center mb-6">Turjuman - LLM Powered Books  & Long Text Translator</h1>
+            <h1 class="text-3xl font-bold text-center mb-6">
+                <i class="fas fa-language mr-2"></i> Turjuman - LLM Powered Books & Long Text Translator
+            </h1>
             
             <!-- Main Navigation Tabs -->
             <div class="flex items-center justify-between border-b border-[var(--border-color)] mb-6">
-                <nav class="-mb-px flex space-x-8" aria-label="Main Navigation">
-                    <button @click="viewMode = 'form'" :class="{'active': viewMode === 'form'}" class="tab">
-                        New Translation
+                <nav class="-mb-px flex space-x-2 overflow-x-auto" aria-label="Main Navigation">
+                    <button @click="viewMode = 'home'" :class="{'active': viewMode === 'home'}" class="tab">
+                        <i class="fas fa-home"></i> Home
+                    </button>
+                    <button @click="viewMode = 'form'; resetTranslation()" :class="{'active': viewMode === 'form'}" class="tab">
+                        <i class="fas fa-plus-circle"></i> New Translation
                     </button>
                     <button @click="viewMode = 'glossary'; loadUserGlossaries()" :class="{'active': viewMode === 'glossary'}" class="tab">
-                        Glossary Management
+                        <i class="fas fa-book"></i> Glossary Management
                     </button>
                     <button @click="showJobHistory()" :class="{'active': viewMode === 'history'}" class="tab">
-                        Job History
+                        <i class="fas fa-history"></i> Job History
                     </button>
                     <button @click="viewMode = 'llm-config'" :class="{'active': viewMode === 'llm-config'}" class="tab">
-                        Configuration
+                        <i class="fas fa-cogs"></i> Configuration
                     </button>
                 </nav>
                 <div class="flex items-center ml-4">
-                    <label for="theme-select" class="text-sm font-medium mr-2">Theme:</label>
-                    <select id="theme-select" x-model="theme" class="pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                    <label for="theme-select" class="text-sm font-medium mr-2">
+                        <i class="fas fa-paint-brush mr-1"></i> Theme:
+                    </label>
+                    <select id="theme-select" x-model="theme" class="pl-3 pr-10 py-2 text-base border focus:ring focus:ring-opacity-50 sm:text-sm rounded-md">
                         <option value="light">Light</option>
                         <option value="dark">Dark</option>
                         <option value="yellow">Yellow</option>
                         <option value="grey">Grey</option>
+                        <option value="teal">Teal</option>
+                        <option value="lavender">Lavender</option>
                         <option value="cyberpunk-magenta">Cyberpunk - Magenta</option>
                         <option value="cyberpunk-red">Cyberpunk - Red</option>
                         <option value="cyberpunk-cyan">Cyberpunk - Cyan</option>
@@ -163,41 +272,90 @@
                 </div>
             </div>
         </div>
-
+        
+        <!-- Home View -->
+        <div x-show="viewMode === 'home'" class="tab-content">
+            <div class="card text-center p-8">
+                <div class="text-6xl mb-6 text-indigo-600">
+                    <i class="fas fa-language"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-4">Welcome to Turjuman</h2>
+                <p class="text-lg mb-6">The LLM-powered translator for books and long text documents</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="p-6 bg-[var(--bg-tertiary)] rounded-lg">
+                        <div class="text-3xl mb-4 text-blue-500">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <h3 class="font-semibold mb-2">Translate Books</h3>
+                        <p class="text-[var(--text-muted)]">Upload file or paste text to translate, You can upload an entire book (e.g: 200,000 word book), Turjuman will translate it while maintaining structure and formatting. currently (.md) and (.txt) supportted </p>
+                    </div>
+                    
+                    <div class="p-6 bg-[var(--bg-tertiary)] rounded-lg">
+                        <div class="text-3xl mb-4 text-green-500">
+                            <i class="fas fa-book-reader"></i>
+                        </div>
+                        <h3 class="font-semibold mb-2">Understand Context</h3>
+                        <p class="text-[var(--text-muted)]">LLMs (Large Language Models) understand the meaning and deep ideas in context across paragraphs for accurate and deep translations.</p>
+                    </div>
+                    
+                    <div class="p-6 bg-[var(--bg-tertiary)] rounded-lg">
+                        <div class="text-3xl mb-4 text-purple-500">
+                            <i class="fas fa-sync-alt"></i>
+                        </div>
+                        <h3 class="font-semibold mb-2">Custom Glossaries</h3>
+                        <p class="text-[var(--text-muted)]">Create and manage your own glossaries to ensure consistent terminology throughout your translations. or leave it to LLM model to automatically build a unified glossary accross the text/book</p>
+                    </div>
+                </div>
+                
+                <button @click="viewMode = 'form'; resetTranslation()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md shadow-md transition-all duration-200 transform hover:-translate-y-1">
+                    <i class="fas fa-plus-circle mr-2"></i> Start New Translation
+                </button>
+            </div>
+        </div>
+        
         <!-- New Translation Form View -->
-        <div x-show="viewMode === 'form'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
+        <div x-show="viewMode === 'form'" class="grid grid-cols-1 lg:grid-cols-3 gap-6 tab-content">
             <!-- Left Column: Configuration & Input -->
             <div class="lg:col-span-1 space-y-4">
                 <div class="card">
-                    <h2 class="text-xl font-semibold mb-3">Translation Settings</h2>
+                    <h2 class="text-xl font-semibold mb-3">
+                        <i class="fas fa-cog mr-2"></i> Translation Settings
+                    </h2>
                     <div class="space-y-3">
                         <div>
-                            <label for="source_lang" class="block text-sm font-medium">Source Language:</label>
-                            <input type="text" id="source_lang" x-model="inputData.config.source_lang" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., english">
+                            <label for="source_lang" class="block text-sm font-medium">
+                                <i class="fas fa-globe-americas mr-1"></i> Source Language:
+                            </label>
+                            <input type="text" id="source_lang" x-model="inputData.config.source_lang" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., english">
                         </div>
                         <div>
-                            <label for="target_lang" class="block text-sm font-medium">Target Language:</label>
-                            <input type="text" id="target_lang" x-model="inputData.config.target_lang" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., arabic">
+                            <label for="target_lang" class="block text-sm font-medium">
+                                <i class="fas fa-globe-europe mr-1"></i> Target Language:
+                            </label>
+                            <input type="text" id="target_lang" x-model="inputData.config.target_lang" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., arabic">
                         </div>
                         <div>
-                            <label for="target_accent" class="block text-sm font-medium">Target Style/Accent:</label>
-                            <input type="text" id="target_accent" x-model="inputData.config.target_language_accent" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., professional, Egyptian Arabic">
+                            <label for="target_accent" class="block text-sm font-medium">
+                                <i class="fas fa-microphone-alt mr-1"></i> Target Style/Accent:
+                            </label>
+                            <input type="text" id="target_accent" x-model="inputData.config.target_language_accent" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., professional, Egyptian Arabic">
                         </div>
                     </div>
                 </div>
-
                 <div class="card">
-                    <h2 class="text-xl font-semibold mb-3">Glossary Selection</h2>
+                    <h2 class="text-xl font-semibold mb-3">
+                        <i class="fas fa-book mr-2"></i> Glossary Selection
+                    </h2>
                     <div>
                         <label for="glossary_select" class="block text-sm font-medium">Select Glossary:</label>
-                        <select id="glossary_select" x-model="selectedGlossaryId" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                            <option value="none">None (Use Terminology Extraction)</option>
+                        <select id="glossary_select" x-model="selectedGlossaryId" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm">
+                            <option value="none">Automatic Terminology Extraction</option>
                             <template x-for="glossary in userGlossaries" :key="glossary.glossary_id">
                                 <option :value="glossary.glossary_id" x-text="glossary.name + (glossary.is_default ? ' (Default)' : '')"></option>
                             </template>
                         </select>
-                        <p class="mt-1 text-xs text-[var(--text-muted)]">Select a saved glossary or choose 'None' to use automatic term extraction. This option will automatically unify all technical terms and names accross the translated file</p>
+                        <p class="mt-1 text-xs text-[var(--text-muted)]">Select a saved glossary or choose "Automatic Terminology Extraction". This option will automatically unify all technical terms and names across the translated file. If you wish to use custom glossary table or dictionary list go to "Glossary Management" tab to create or upload one</p>
                         <p class="mt-1 text-xs text-indigo-600" x-show="selectedGlossaryId === ''">Using: Default Glossary (if available)</p>
                         <p class="mt-1 text-xs text-orange-600" x-show="selectedGlossaryId === 'none'">Using: Automatic Term Extraction</p>
                         <template x-if="selectedGlossaryId && selectedGlossaryId !== 'none'">
@@ -205,129 +363,144 @@
                         </template>
                     </div>
                 </div>
-
                 <div class="card">
-                    <h2 class="text-xl font-semibold mb-3">Input Content</h2>
+                    <h2 class="text-xl font-semibold mb-3">
+                        <i class="fas fa-file-alt mr-2"></i> Input Content
+                    </h2>
                      <div>
-                        <label for="file-upload" class="block text-sm font-medium mb-1">Upload File (.md, .txt):</label>
+                        <label for="file-upload" class="block text-sm font-medium mb-1">
+                            <i class="fas fa-upload mr-1"></i> Upload File (.md, .txt):
+                        </label>
                         <input id="file-upload" type="file" @change="handleFileUpload($event)" accept=".md,.markdown,.txt" class="block w-full text-sm text-[var(--text-muted)] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[var(--bg-tertiary)] file:text-[var(--text-primary)] hover:file:bg-opacity-80">
                         <p x-show="originalFilename" class="mt-1 text-sm text-[var(--text-muted)]">Selected file: <span x-text="originalFilename"></span></p>
                     </div>
                     <div class="mt-2">
-                        <label for="original_content" class="block text-sm font-medium">Or Paste Text:</label>
-                        <textarea id="original_content" x-model="inputData.original_content" rows="15" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Paste your text here or upload a file..."></textarea>
+                        <label for="original_content" class="block text-sm font-medium">
+                            <i class="fas fa-keyboard mr-1"></i> Or Paste Text:
+                        </label>
+                        <textarea id="original_content" x-model="inputData.original_content" rows="15" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="Paste your text here or upload a file..."></textarea>
                     </div>
-                    <button @click="startTranslation" :disabled="isLoading || !canStartTranslation()" class="mt-4 w-full inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <span x-show="!isLoading">Start Translation</span>
+                    <button @click="startTranslation" :disabled="isLoading || !canStartTranslation()" class="mt-4 w-full inline-flex justify-center items-center py-3 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200">
+                        <span x-show="!isLoading"><i class="fas fa-play mr-2"></i> Start Translation</span>
                         <div x-show="isLoading" class="spinner mr-2"></div>
                         <span x-show="isLoading">Translating...</span>
                     </button>
                 </div>
             </div>
-
             <!-- Right Column: Status & Results -->
             <div class="lg:col-span-2 space-y-4">
                 <div class="card" x-show="jobId || isLoading">
-                    <h2 class="text-xl font-semibold mb-3">Translation Status</h2>
-                    <div x-show="jobId">Job ID: <code class="text-sm" x-text="jobId"></code></div>
+                    <h2 class="text-xl font-semibold mb-3">
+                        <i class="fas fa-tasks mr-2"></i> Translation Status
+                    </h2>
+                    <div x-show="jobId">
+                        <span class="text-sm text-[var(--text-muted)]">Job ID:</span> 
+                        <code class="text-sm bg-[var(--bg-tertiary)] px-2 py-1 rounded" x-text="jobId"></code>
+                    </div>
                     <div x-show="isLoading || status.progress_percent > 0">
                         <p class="mb-1 mt-2">Completed Step: <strong x-text="status.current_step || (isLoading ? 'Initializing...' : 'Done')"></strong></p>
                         <!-- Translation Stage Graph -->
-                        <div class="w-full bg-[var(--bg-tertiary)] rounded-full h-2.5 mb-2">
+                        <div class="w-full bg-[var(--bg-tertiary)] rounded-full h-2.5 mb-2 overflow-hidden">
                             <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" :style="`width: ${status.progress_percent || 0}%`"></div>
                         </div>
                         <p class="text-sm text-right mb-2"><span x-text="status.progress_percent ? status.progress_percent.toFixed(1) : '0.0'"></span>%</p>
                         <p class="text-sm" x-show="status.final_document || status.error_info">Duration: <span x-text="translationDuration"></span></p>
                     </div>
                      <div x-show="status.error_info" class="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                        <h3 class="text-md font-semibold mb-1">Error:</h3>
+                        <h3 class="text-md font-semibold mb-1"><i class="fas fa-exclamation-triangle mr-1"></i> Error:</h3>
                         <p class="text-sm" x-text="status.error_info"></p>
                     </div>
                 </div>
-
                 <template x-if="isLoading || status.final_document">
                     <div>
                         <!-- Results Card Header (only for downloads, shown when translation is complete) -->
                         <div class="card" x-show="status.final_document">
                             <div class="flex justify-between items-center mb-3">
-                                 <h2 class="text-xl font-semibold">Results</h2>
+                                 <h2 class="text-xl font-semibold"><i class="fas fa-check-circle text-green-500 mr-2"></i> Results</h2>
                                  <div class="flex space-x-2">
-                                     <button @click="downloadFile(cleanedTranslatedContent, 'translated.md', 'text/markdown')" class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                                         Download translated file (.MD)
+                                     <button @click="downloadFile(cleanedTranslatedContent, 'translated.md', 'text/markdown')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all">
+                                         <i class="fas fa-download mr-1"></i> Download .MD
                                      </button>
-                                     <button @click="downloadFile(JSON.stringify(status, null, 2), 'response.json', 'application/json')" class="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                         Download JSON Response
+                                     <button @click="downloadFile(JSON.stringify(status, null, 2), 'response.json', 'application/json')" class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all">
+                                         <i class="fas fa-code mr-1"></i> Download JSON
                                      </button>
                                  </div>
                             </div>
                         </div>
-
                         <!-- Tabs Navigation -->
                         <div class="card">
                             <div class="border-b border-[var(--border-color)] mb-4">
-                                <nav class="-mb-px flex space-x-4" aria-label="Tabs">
-                                    <button @click="activeTab = 'full'" :class="{'active': activeTab === 'full'}" class="tab">Full Document</button>
-                                    <button @click="activeTab = 'chunks'" :class="{'active': activeTab === 'chunks'}" class="tab">Chunk Pairs</button>
-                                    <button @click="activeTab = 'glossary'" :class="{'active': activeTab === 'glossary'}" class="tab">Glossary</button>
-                                    <button @click="activeTab = 'logs'" :class="{'active': activeTab === 'logs'}" class="tab">Logs</button>
+                                <nav class="flex flex-wrap -mb-px space-x-4" aria-label="Tabs">
+                                    <button @click="activeTab = 'full'" :class="{'active': activeTab === 'full'}" class="tab">
+                                        <i class="fas fa-file-alt"></i> Full Document
+                                    </button>
+                                    <button @click="activeTab = 'chunks'" :class="{'active': activeTab === 'chunks'}" class="tab">
+                                        <i class="fas fa-puzzle-piece"></i> Chunk Pairs
+                                    </button>
+                                    <button @click="activeTab = 'glossary'" :class="{'active': activeTab === 'glossary'}" class="tab">
+                                        <i class="fas fa-book"></i> Glossary
+                                    </button>
+                                    <button @click="activeTab = 'logs'" :class="{'active': activeTab === 'logs'}" class="tab">
+                                        <i class="fas fa-list-ul"></i> Logs
+                                    </button>
                                 </nav>
                             </div>
-
                             <!-- Tab Content -->
-                            <div>
+                            <div class="tab-content">
                                 <!-- Full Document View -->
                                 <div x-show="activeTab === 'full'">
                                     <template x-if="!status.final_document">
                                         <div class="p-6 text-center text-[var(--text-muted)]">
-                                            <span class="text-lg font-semibold">Translation in progress .. will update when complete, in meanwhile view the realtime translated chunks or logs for more details</span>
+                                            <div class="text-lg mb-3"><i class="fas fa-hourglass-half fa-spin text-blue-500 mr-2"></i> Translation in progress...</div>
+                                            <p class="text-sm">Will update when complete. In the meantime, view the real-time translated chunks or logs for more details.</p>
                                         </div>
                                     </template>
                                     <template x-if="status.final_document">
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <div class="flex justify-between items-baseline mb-1">
-                                                    <h3 class="text-lg font-semibold">Original</h3>
+                                                    <h3 class="text-lg font-semibold"><i class="fas fa-file-alt mr-1"></i> Original</h3>
                                                     <span class="text-xs text-[var(--text-muted)]" x-text="`Words: ${countWords(cleanedOriginalContent)} | Chars: ${cleanedOriginalContent.length}`"></span>
                                                 </div>
                                                 <textarea readonly :dir="isRtl(inputData.config.source_lang) ? 'rtl' : 'ltr'" x-text="cleanedOriginalContent" rows="20" class="w-full rounded-md shadow-sm sm:text-sm disabled:opacity-100"></textarea>
                                             </div>
                                             <div>
                                                 <div class="flex justify-between items-baseline mb-1">
-                                                    <h3 class="text-lg font-semibold">Translated</h3>
+                                                    <h3 class="text-lg font-semibold"><i class="fas fa-language mr-1"></i> Translated</h3>
                                                      <span class="text-xs text-[var(--text-muted)]" x-text="`Words: ${countWords(cleanedTranslatedContent)} | Chars: ${cleanedTranslatedContent.length}`"></span>
                                                 </div>
-                                                <div :dir="isRtl(inputData.config.target_lang) ? 'rtl' : 'ltr'" class="h-[410px] overflow-y-auto border border-[var(--border-color)] rounded-md p-2 bg-[var(--bg-tertiary)]">
+                                                <div :dir="isRtl(inputData.config.target_lang) ? 'rtl' : 'ltr'" class="h-[410px] overflow-y-auto border border-[var(--border-color)] rounded-md p-3 bg-[var(--bg-tertiary)]">
                                                     <pre x-text="cleanedTranslatedContent"></pre>
                                                 </div>
                                             </div>
                                         </div>
                                     </template>
                                 </div>
-
                                 <!-- Chunk Pairs View -->
                                 <div x-show="activeTab === 'chunks'" class="space-y-4 max-h-[500px] overflow-y-auto">
                                     <template x-for="(chunk, index) in status.chunks" :key="index">
                                         <div class="border-b border-[var(--border-color)] pb-4">
-                                            <h4 class="text-md font-semibold mb-2">Chunk Pair <span x-text="index + 1"></span></h4>
+                                            <h4 class="text-md font-semibold mb-2"><i class="fas fa-puzzle-piece mr-1"></i> Chunk Pair <span x-text="index + 1"></span></h4>
                                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>
-                                                    <h5 class="text-sm font-medium text-[var(--text-muted)] mb-1">Original</h5>
-                                                    <pre :dir="isRtl(inputData.config.source_lang) ? 'rtl' : 'ltr'" x-text="cleanMarkdown(chunk.original_chunk || '')"></pre>
+                                                    <h5 class="text-sm font-medium text-[var(--text-muted)] mb-1"><i class="fas fa-file-alt mr-1"></i> Original</h5>
+                                                    <pre :dir="isRtl(inputData.config.source_lang) ? 'rtl' : 'ltr'" class="bg-[var(--bg-tertiary)] rounded p-2" x-text="cleanMarkdown(chunk.original_chunk || '')"></pre>
                                                 </div>
                                                 <div>
-                                                    <h5 class="text-sm font-medium text-[var(--text-muted)] mb-1">Translated</h5>
-                                                    <pre :dir="isRtl(inputData.config.target_lang) ? 'rtl' : 'ltr'" x-text="cleanMarkdown(chunk.translated_chunk || '')"></pre>
+                                                    <h5 class="text-sm font-medium text-[var(--text-muted)] mb-1"><i class="fas fa-language mr-1"></i> Translated</h5>
+                                                    <pre :dir="isRtl(inputData.config.target_lang) ? 'rtl' : 'ltr'" class="bg-[var(--bg-tertiary)] rounded p-2" x-text="cleanMarkdown(chunk.translated_chunk || '')"></pre>
                                                 </div>
                                             </div>
                                         </div>
                                     </template>
-                                     <p x-show="!status.chunks || status.chunks.length === 0">No chunk data available.</p>
+                                     <p x-show="!status.chunks || status.chunks.length === 0" class="text-center py-4 text-[var(--text-muted)]">
+                                         <i class="fas fa-info-circle mr-1"></i> No chunk data available.
+                                     </p>
                                 </div>
-
                                 <!-- Glossary View -->
                                 <div x-show="activeTab === 'glossary'">
                                     <div class="flex justify-between items-center mb-2">
-                                        <h3 class="text-lg font-semibold">Translation Glossary</h3>
+                                        <h3 class="text-lg font-semibold"><i class="fas fa-book mr-1"></i> Translation Glossary</h3>
                                         <span class="text-sm text-[var(--text-muted)]"
                                               x-text="glossaryUsedSource === 'id' ? 'Source: User Selected' :
                                                      (glossaryUsedSource === 'default' ? 'Source: Default Glossary' :
@@ -335,93 +508,107 @@
                                                      (glossaryUsedSource === 'none' ? 'Source: Automatic Extraction' : 'Source: Unknown')))">
                                         </span>
                                     </div>
-                                    <div class="overflow-x-auto">
+                                    <div class="overflow-x-auto bg-[var(--bg-tertiary)] rounded-lg">
                                         <table class="min-w-full divide-y divide-[var(--border-color)]">
-                                            <thead>
+                                            <thead class="bg-[var(--bg-secondary)]">
                                                 <tr>
-                                                    <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Source Term</th>
-                                                    <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Target Term</th>
-                                                    <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Context</th>
+                                                    <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Source Term</th>
+                                                    <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Target Term</th>
+                                                    <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Context</th>
                                                 </tr>
                                             </thead>
-                                            <tbody class="divide-y divide-[var(--border-color)]">
+                                            <tbody class="divide-y divide-[var(--border-color)] bg-[var(--bg-primary)]">
                                                 <template x-for="(entry, index) in status.contextualized_glossary" :key="index">
-                                                    <tr class="hover:bg-[var(--bg-tertiary)]">
-                                                        <td class="px-4 py-2 text-sm" :dir="isRtl(inputData.config.source_lang) ? 'rtl' : 'ltr'" x-text="entry.sourceTerm"></td>
-                                                        <td class="px-4 py-2 text-sm" :dir="isRtl(inputData.config.target_lang) ? 'rtl' : 'ltr'" x-text="entry.proposedTranslations && entry.proposedTranslations[inputData.config.target_lang]"></td>
-                                                        <td class="px-4 py-2 text-sm" x-text="entry.context || '-'"></td>
+                                                    <tr class="hover:bg-[var(--bg-tertiary)] transition-colors">
+                                                        <td class="px-4 py-3 text-sm" :dir="isRtl(inputData.config.source_lang) ? 'rtl' : 'ltr'" x-text="entry.sourceTerm"></td>
+                                                        <td class="px-4 py-3 text-sm" :dir="isRtl(inputData.config.target_lang) ? 'rtl' : 'ltr'" x-text="entry.proposedTranslations && entry.proposedTranslations[inputData.config.target_lang]"></td>
+                                                        <td class="px-4 py-3 text-sm" x-text="entry.context || '-'"></td>
                                                     </tr>
                                                 </template>
                                             </tbody>
                                         </table>
                                     </div>
                                     <div x-show="!status.contextualized_glossary || status.contextualized_glossary.length === 0" class="text-center py-4 text-[var(--text-muted)]">
-                                        No glossary entries found for this job.
+                                        <i class="fas fa-info-circle mr-1"></i> No glossary entries found for this job.
                                     </div>
                                 </div>
-
                                 <!-- Logs View -->
                                 <div x-show="activeTab === 'logs'">
-                                    <h3 class="text-lg font-semibold mb-2">Logs</h3>
-                                    <div class="max-h-96 overflow-y-auto bg-[var(--bg-tertiary)] p-2 rounded border border-[var(--border-color)] text-sm font-mono">
+                                    <h3 class="text-lg font-semibold mb-2"><i class="fas fa-list-ul mr-1"></i> Logs</h3>
+                                    <div class="max-h-96 overflow-y-auto bg-[var(--bg-tertiary)] p-3 rounded-lg border border-[var(--border-color)] text-sm font-mono">
                                         <template x-for="(log, index) in logs" :key="index">
-                                            <div x-text="log"></div>
+                                            <div class="py-1 border-b border-[var(--border-color)] border-opacity-20" x-text="log"></div>
                                         </template>
+                                        <div x-show="!logs || logs.length === 0" class="text-center py-4 text-[var(--text-muted)]">
+                                            No logs available.
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </template>
-                                </template>
-                                <p x-show="!logs || logs.length === 0">Start new translation request by selecting file or write some content</p>
-                            </div>
-                        </div>
+                <div x-show="!jobId && !isLoading && viewMode === 'form'" class="card text-center p-8">
+                    <div class="text-6xl mb-6 text-indigo-600 opacity-50">
+                        <i class="fas fa-file-import"></i>
                     </div>
+                    <h3 class="text-xl font-medium mb-2">Start a New Translation</h3>
+                    <p class="text-[var(--text-muted)] mb-6">Upload a file or paste your content, configure your translation settings, and click "Start Translation".</p>
                 </div>
-
             </div>
         </div>
-
+        
         <!-- Glossary Management View -->
-        <div x-show="viewMode === 'glossary'" class="space-y-4">
+        <div x-show="viewMode === 'glossary'" class="space-y-4 tab-content">
             <div class="max-w-5xl mx-auto">
-                <h2 class="text-xl font-semibold mb-6 text-center">Glossary Management</h2>
-
+                <h2 class="text-xl font-semibold mb-6 text-center">
+                    <i class="fas fa-book mr-2"></i> Glossary Management
+                </h2>
                 <!-- Create/Edit Glossary Form -->
                 <div class="card">
-                    <h3 class="text-lg font-semibold mb-3" x-text="currentGlossary.glossary_id ? 'Edit Glossary' : 'Create New Glossary Table'">Create New Glossary Table</h3>
+                    <h3 class="text-lg font-semibold mb-3" x-text="currentGlossary.glossary_id ? 'Edit Glossary' : 'Create New Glossary Table'">
+                        <i class="fas fa-edit mr-1"></i> Create New Glossary Table
+                    </h3>
                     <div class="space-y-3">
                         <div>
-                            <label for="glossary_name" class="block text-sm font-medium">Glossary Table Name:</label>
-                            <input type="text" id="glossary_name" x-model="currentGlossary.name" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Enter a name for this glossary">
+                            <label for="glossary_name" class="block text-sm font-medium">
+                                <i class="fas fa-tag mr-1"></i> Glossary Table Name:
+                            </label>
+                            <input type="text" id="glossary_name" x-model="currentGlossary.name" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="Enter a name for this glossary">
                         </div>
                         <div>
-                            <label for="glossary-file-upload" class="block text-sm font-medium mb-1">Upload Glossary JSON File: 'example: [{"sourceTerm": "example", "proposedTranslations": {"target_lang": "translation"}}, ...]'</label>
+                            <label for="glossary-file-upload" class="block text-sm font-medium mb-1">
+                                <i class="fas fa-upload mr-1"></i> Upload Glossary JSON File:
+                            </label>
+                            <p class="text-xs text-[var(--text-muted)] mb-2">Example format: [{"sourceTerm": "example", "proposedTranslations": {"target_lang": "translation"}}, ...]</p>
                             <input id="glossary-file-upload" type="file" @change="handleGlossaryFileUpload($event)" accept=".json" class="block w-full text-sm text-[var(--text-muted)] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[var(--bg-tertiary)] file:text-[var(--text-primary)] hover:file:bg-opacity-80">
                             <p x-show="glossaryFilename" class="mt-1 text-sm text-[var(--text-muted)]">Selected file: <span x-text="glossaryFilename"></span></p>
                         </div>
                         <!-- New Term Input Section -->
-                        <div>
-                            <label class="block text-sm font-medium">Add Glossary Terms:</label>
-                            <div class="mt-1 flex space-x-2 items-end">
-                                <div class="flex-grow">
+                        <div class="p-3 border border-[var(--border-color)] rounded-lg bg-[var(--bg-tertiary)]">
+                            <label class="block text-sm font-medium mb-2">
+                                <i class="fas fa-plus-circle mr-1"></i> Add Glossary Terms:
+                            </label>
+                            <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2 items-end">
+                                <div class="w-full md:w-2/5">
                                     <label for="new_source_term" class="block text-xs font-medium text-[var(--text-muted)]">Source Term</label>
                                     <input type="text" id="new_source_term" x-model="newTerm.source" class="block w-full rounded-md shadow-sm sm:text-sm" placeholder="Source term">
                                 </div>
-                                <div class="flex-grow">
-                                    <!-- TODO: Dynamically determine target language key -->
+                                <div class="w-full md:w-2/5">
                                     <label for="new_target_term" class="block text-xs font-medium text-[var(--text-muted)]">Target Term (<span x-text="determineGlossaryTargetLang() || 'target_lang'"></span>)</label>
                                     <input type="text" id="new_target_term" x-model="newTerm.target" class="block w-full rounded-md shadow-sm sm:text-sm" placeholder="Target translation">
                                 </div>
-                                <button @click="addGlossaryTerm()" :disabled="!newTerm.source || !newTerm.target" class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">Add</button>
+                                <button @click="addGlossaryTerm()" :disabled="!newTerm.source || !newTerm.target" class="w-full md:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-all">
+                                    <i class="fas fa-plus-circle mr-1"></i> Add Term
+                                </button>
                             </div>
                         </div>
-
                         <!-- Display Added Terms -->
                         <div class="mt-4">
-                            <h4 class="text-md font-semibold mb-2">Current Terms (<span x-text="currentGlossary.terms ? currentGlossary.terms.length : 0"></span>):</h4>
-                            <div class="max-h-60 overflow-y-auto border border-[var(--border-color)] rounded-md">
+                            <h4 class="text-md font-semibold mb-2">
+                                <i class="fas fa-list mr-1"></i> Current Terms (<span x-text="currentGlossary.terms ? currentGlossary.terms.length : 0"></span>):
+                            </h4>
+                            <div class="max-h-60 overflow-y-auto border border-[var(--border-color)] rounded-lg">
                                 <table class="min-w-full divide-y divide-[var(--border-color)]">
                                     <thead class="bg-[var(--bg-tertiary)] sticky top-0">
                                         <tr>
@@ -430,21 +617,23 @@
                                             <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-[var(--border-color)]">
+                                    <tbody class="divide-y divide-[var(--border-color)] bg-[var(--bg-primary)]">
                                         <template x-for="(term, index) in currentGlossary.terms" :key="index">
-                                            <tr>
+                                            <tr class="hover:bg-[var(--bg-tertiary)] transition-colors">
                                                 <td class="px-4 py-2 text-sm" x-text="term.sourceTerm"></td>
-                                                <!-- TODO: Dynamically determine target language key -->
                                                 <td class="px-4 py-2 text-sm" x-text="term.proposedTranslations['default'] || Object.values(term.proposedTranslations)[0] || ''"></td>
-                                                <td class="px-4 py-2 text-sm space-x-2">
-                                                    <!-- Edit button (optional for now, can add later) -->
-                                                    <button @click="removeGlossaryTerm(index)" class="text-red-600 hover:text-red-900">Delete</button>
+                                                <td class="px-4 py-2 text-sm">
+                                                    <button @click="removeGlossaryTerm(index)" class="text-red-600 hover:text-red-900 transition-colors">
+                                                        <i class="fas fa-trash-alt"></i> Delete
+                                                    </button>
                                                 </td>
                                             </tr>
                                         </template>
                                         <template x-if="!currentGlossary.terms || currentGlossary.terms.length === 0">
                                             <tr>
-                                                <td colspan="3" class="px-4 py-3 text-center text-sm text-[var(--text-muted)]">No terms added yet. Use the fields above or upload a file.</td>
+                                                <td colspan="3" class="px-4 py-3 text-center text-sm text-[var(--text-muted)]">
+                                                    <i class="fas fa-info-circle mr-1"></i> No terms added yet. Use the fields above or upload a file.
+                                                </td>
                                             </tr>
                                         </template>
                                     </tbody>
@@ -452,50 +641,51 @@
                             </div>
                         </div>
                         <div class="flex space-x-2">
-                            <button @click="saveUserGlossary" :disabled="!currentGlossary.name || !currentGlossary.glossary_json_string" class="inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <span x-text="currentGlossary.glossary_id ? 'Update Glossary' : 'Save New Glossary'">Save New Glossary</span>
+                            <button @click="saveUserGlossary" :disabled="!currentGlossary.name || !currentGlossary.glossary_json_string" class="inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                                <i class="fas fa-save mr-1"></i> <span x-text="currentGlossary.glossary_id ? 'Update Glossary' : 'Save New Glossary'">Save New Glossary</span>
                             </button>
-                            <button @click="resetCurrentGlossary()" x-show="currentGlossary.glossary_id" class="inline-flex justify-center items-center py-2 px-4 border border-[var(--border-color)] shadow-sm text-sm font-medium rounded-md text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-                                Cancel Edit
+                            <button @click="resetCurrentGlossary()" x-show="currentGlossary.glossary_id" class="inline-flex justify-center items-center py-2 px-4 border border-[var(--border-color)] shadow-sm text-sm font-medium rounded-md text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all">
+                                <i class="fas fa-times mr-1"></i> Cancel Edit
                             </button>
                         </div>
-                         <div x-show="glossaryError" class="mt-2 text-sm text-red-600" x-text="glossaryError"></div>
+                        <div x-show="glossaryError" class="mt-2 text-sm text-red-600" x-text="glossaryError"></div>
                     </div>
                 </div>
-
                 <!-- Saved Glossaries List -->
                 <div class="card">
-                    <h3 class="text-lg font-semibold mb-3">Saved Glossaries</h3>
-                    <div class="overflow-x-auto">
+                    <h3 class="text-lg font-semibold mb-3">
+                        <i class="fas fa-list-alt mr-1"></i> Saved Glossaries
+                    </h3>
+                    <div class="overflow-x-auto bg-[var(--bg-tertiary)] rounded-lg">
                         <table class="min-w-full divide-y divide-[var(--border-color)]">
-                            <thead>
+                            <thead class="bg-[var(--bg-secondary)]">
                                 <tr>
-                                    <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Name</th>
-                                    <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Default</th>
-                                    <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Name</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Default</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-[var(--border-color)]">
+                            <tbody class="divide-y divide-[var(--border-color)] bg-[var(--bg-primary)]">
                                 <template x-for="glossary in userGlossaries" :key="glossary.glossary_id">
-                                    <tr class="hover:bg-[var(--bg-tertiary)]">
-                                        <td class="px-4 py-2 text-sm" x-text="glossary.name"></td>
-                                        <td class="px-4 py-2 text-sm">
+                                    <tr class="hover:bg-[var(--bg-tertiary)] transition-colors">
+                                        <td class="px-4 py-3 text-sm" x-text="glossary.name"></td>
+                                        <td class="px-4 py-3 text-sm">
                                             <span x-show="glossary.is_default" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                                Default
+                                                <i class="fas fa-check mr-1"></i> Default
                                             </span>
                                         </td>
-                                        <td class="px-4 py-2 text-sm space-x-2 whitespace-nowrap">
-                                            <button @click="setDefaultUserGlossary(glossary.glossary_id)" x-show="!glossary.is_default" class="text-indigo-600 hover:text-indigo-900">
-                                                Set Default
+                                        <td class="px-4 py-3 text-sm space-x-2 whitespace-nowrap">
+                                            <button @click="setDefaultUserGlossary(glossary.glossary_id)" x-show="!glossary.is_default" class="text-indigo-600 hover:text-indigo-900 transition-colors">
+                                                <i class="fas fa-star mr-1"></i> Set Default
                                             </button>
-                                            <button @click="editUserGlossary(glossary.glossary_id)" class="text-blue-600 hover:text-blue-900">
-                                                Edit
+                                            <button @click="editUserGlossary(glossary.glossary_id)" class="text-blue-600 hover:text-blue-900 transition-colors">
+                                                <i class="fas fa-edit mr-1"></i> Edit
                                             </button>
-                                             <button @click="downloadGlossary(glossary.glossary_id, glossary.name)" class="text-green-600 hover:text-green-900">
-                                                Download
+                                            <button @click="downloadGlossary(glossary.glossary_id, glossary.name)" class="text-green-600 hover:text-green-900 transition-colors">
+                                                <i class="fas fa-download mr-1"></i> Download
                                             </button>
-                                            <button @click="deleteUserGlossary(glossary.glossary_id, glossary.name)" class="text-red-600 hover:text-red-900">
-                                                Delete
+                                            <button @click="deleteUserGlossary(glossary.glossary_id, glossary.name)" class="text-red-600 hover:text-red-900 transition-colors">
+                                                <i class="fas fa-trash-alt mr-1"></i> Delete
                                             </button>
                                         </td>
                                     </tr>
@@ -504,46 +694,62 @@
                         </table>
                     </div>
                     <div x-show="userGlossaries.length === 0" class="text-center py-4 text-[var(--text-muted)]">
-                        No glossaries saved yet. Create one using the form above.
+                        <i class="fas fa-info-circle mr-1"></i> No glossaries saved yet. Create one using the form above.
                     </div>
                 </div>
             </div>
         </div>
-
+        
         <!-- Configuration View (LLM + Environment) -->
-        <div x-show="viewMode === 'llm-config'" class="space-y-4">
+        <div x-show="viewMode === 'llm-config'" class="space-y-4 tab-content">
             <div class="max-w-5xl mx-auto">
-                <h2 class="text-xl font-semibold mb-6 text-center">Configuration</h2>
+                <h2 class="text-xl font-semibold mb-6 text-center">
+                    <i class="fas fa-cogs mr-2"></i> Configuration
+                </h2>
                 <div class="space-y-8">
                     <!-- LLM Configuration Section -->
                     <div class="card space-y-6">
-                        <h3 class="text-lg font-semibold text-center">LLM Configuration</h3>
+                        <h3 class="text-lg font-semibold text-center">
+                            <i class="fas fa-microchip mr-1"></i> LLM Configuration
+                        </h3>
                         <!-- Current Default Configuration -->
-                        <div class="p-4 border border-[var(--border-color)] rounded-md bg-[var(--bg-tertiary)]">
-                            <h4 class="text-md font-medium mb-4 text-center">Current Default Configuration</h4>
-                            <div x-show="defaultLLMConfig">
-                                <p class="mb-2"><span class="font-medium">API URL:</span> <span x-text="defaultLLMConfig?.api_url || '-'"></span></p>
-                                <p class="mb-2"><span class="font-medium">Provider:</span> <span x-text="defaultLLMConfig?.provider || '-'"></span></p>
-                                <p class="mb-2"><span class="font-medium">Model:</span> <span x-text="defaultLLMConfig?.model || '-'"></span></p>
-                                <p class="mb-2"><span class="font-medium">Source Language:</span> <span x-text="defaultLLMConfig?.source_lang || '-'"></span></p>
-                                <p class="mb-2"><span class="font-medium">Target Language:</span> <span x-text="defaultLLMConfig?.target_lang || '-'"></span></p>
-                                <p class="mb-2"><span class="font-medium">Accent/Style:</span> <span x-text="defaultLLMConfig?.target_language_accent || '-'"></span></p>
+                        <div class="p-4 border border-[var(--border-color)] rounded-lg bg-[var(--bg-tertiary)]">
+                            <h4 class="text-md font-medium mb-4 text-center">
+                                <i class="fas fa-check-circle mr-1"></i> Current Default Configuration
+                            </h4>
+                            <div x-show="defaultLLMConfig" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <p class="mb-2"><span class="font-medium"><i class="fas fa-link mr-1"></i> API URL:</span> <span x-text="defaultLLMConfig?.api_url || '-'"></span></p>
+                                    <p class="mb-2"><span class="font-medium"><i class="fas fa-server mr-1"></i> Provider:</span> <span x-text="defaultLLMConfig?.provider || '-'"></span></p>
+                                    <p class="mb-2"><span class="font-medium"><i class="fas fa-brain mr-1"></i> Model:</span> <span x-text="defaultLLMConfig?.model || '-'"></span></p>
+                                </div>
+                                <div>
+                                    <p class="mb-2"><span class="font-medium"><i class="fas fa-globe-americas mr-1"></i> Source Language:</span> <span x-text="defaultLLMConfig?.source_lang || '-'"></span></p>
+                                    <p class="mb-2"><span class="font-medium"><i class="fas fa-globe-europe mr-1"></i> Target Language:</span> <span x-text="defaultLLMConfig?.target_lang || '-'"></span></p>
+                                    <p class="mb-2"><span class="font-medium"><i class="fas fa-microphone-alt mr-1"></i> Accent/Style:</span> <span x-text="defaultLLMConfig?.target_language_accent || '-'"></span></p>
+                                </div>
                             </div>
                             <div x-show="!defaultLLMConfig" class="text-center py-4 text-[var(--text-muted)]">
-                                No default configuration set. Create one using the form.
+                                <i class="fas fa-info-circle mr-1"></i> No default configuration set. Create one using the form.
                             </div>
                         </div>
                         <!-- New Configuration Form -->
-                        <div class="p-4 border border-[var(--border-color)] rounded-md">
-                            <h4 class="text-md font-medium mb-4 text-center">Create New Configuration</h4>
+                        <div class="p-4 border border-[var(--border-color)] rounded-lg">
+                            <h4 class="text-md font-medium mb-4 text-center">
+                                <i class="fas fa-plus-circle mr-1"></i> Create New Configuration
+                            </h4>
                             <div class="space-y-3">
                                 <div>
-                                    <label for="api_url" class="block text-sm font-medium">API URL:</label>
-                                    <input type="text" id="api_url" x-model="newLLMConfig.api_url" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., http://localhost:8051" value="http://localhost:8051">
+                                    <label for="api_url" class="block text-sm font-medium">
+                                        <i class="fas fa-link mr-1"></i> API URL:
+                                    </label>
+                                    <input type="text" id="api_url" x-model="newLLMConfig.api_url" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., http://localhost:8051" value="http://localhost:8051">
                                 </div>
                                 <div>
-                                    <label for="llm_provider" class="block text-sm font-medium">Provider:</label>
-                                    <select id="llm_provider" x-model="newLLMConfig.provider" @change="updateConfigModels" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                    <label for="llm_provider" class="block text-sm font-medium">
+                                        <i class="fas fa-server mr-1"></i> Provider:
+                                    </label>
+                                    <select id="llm_provider" x-model="newLLMConfig.provider" @change="updateConfigModels" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm">
                                         <option value="">Select Provider</option>
                                         <template x-for="providerName in Object.keys(availableProviders)" :key="providerName">
                                             <option :value="providerName" x-text="providerName"></option>
@@ -551,18 +757,22 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label for="model-filter" class="block text-sm font-medium mb-1">Filter Models:</label>
+                                    <label for="model-filter" class="block text-sm font-medium mb-1">
+                                        <i class="fas fa-filter mr-1"></i> Filter Models:
+                                    </label>
                                     <input
                                         id="model-filter"
                                         type="text"
                                         x-model="modelFilter"
                                         placeholder="Type to filter models..."
-                                        class="mb-2 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                        class="mb-2 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm"
                                     >
                                 </div>
                                 <div>
-                                    <label for="llm_model" class="block text-sm font-medium">Model:</label>
-                                    <select id="llm_model" x-model="newLLMConfig.model" :disabled="!newLLMConfig.provider" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:opacity-50">
+                                    <label for="llm_model" class="block text-sm font-medium">
+                                        <i class="fas fa-brain mr-1"></i> Model:
+                                    </label>
+                                    <select id="llm_model" x-model="newLLMConfig.model" :disabled="!newLLMConfig.provider" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm disabled:opacity-50">
                                         <option value="">Select Model</option>
                                         <template x-for="model in configModels.filter(m => !modelFilter || m.toLowerCase().includes(modelFilter.toLowerCase()))" :key="model">
                                             <option :value="model" x-text="model"></option>
@@ -570,63 +780,71 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label for="llm_source_lang" class="block text-sm font-medium">Default Source Language:</label>
-                                    <input type="text" id="llm_source_lang" x-model="newLLMConfig.source_lang" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., english">
+                                    <label for="llm_source_lang" class="block text-sm font-medium">
+                                        <i class="fas fa-globe-americas mr-1"></i> Default Source Language:
+                                    </label>
+                                    <input type="text" id="llm_source_lang" x-model="newLLMConfig.source_lang" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., english">
                                 </div>
                                 <div>
-                                    <label for="llm_target_lang" class="block text-sm font-medium">Default Target Language:</label>
-                                    <input type="text" id="llm_target_lang" x-model="newLLMConfig.target_lang" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., arabic">
+                                    <label for="llm_target_lang" class="block text-sm font-medium">
+                                        <i class="fas fa-globe-europe mr-1"></i> Default Target Language:
+                                    </label>
+                                    <input type="text" id="llm_target_lang" x-model="newLLMConfig.target_lang" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., arabic">
                                 </div>
                                 <div>
-                                    <label for="llm_accent" class="block text-sm font-medium">Default Accent/Style:</label>
-                                    <input type="text" id="llm_accent" x-model="newLLMConfig.target_language_accent" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., professional, Egyptian Arabic">
+                                    <label for="llm_accent" class="block text-sm font-medium">
+                                        <i class="fas fa-microphone-alt mr-1"></i> Default Accent/Style:
+                                    </label>
+                                    <input type="text" id="llm_accent" x-model="newLLMConfig.target_language_accent" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., professional, Egyptian Arabic">
                                 </div>
                                 <div class="flex items-center">
                                     <input type="checkbox" id="llm_default" x-model="newLLMConfig.set_as_default" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
                                     <label for="llm_default" class="ml-2 block text-sm font-medium">Set as default configuration</label>
                                 </div>
                                 <div>
-                                    <button @click="saveLLMConfig" :disabled="!canSaveLLMConfig()" class="w-full inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                                        Save Configuration
+                                    <button @click="saveLLMConfig" :disabled="!canSaveLLMConfig()" class="w-full inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                                        <i class="fas fa-save mr-1"></i> Save Configuration
                                     </button>
                                 </div>
                             </div>
                         </div>
                         <!-- Saved Configurations List -->
                         <div>
-                            <h4 class="text-md font-medium mb-3 text-center">Saved Configurations</h4>
-                            <div class="overflow-x-auto">
+                            <h4 class="text-md font-medium mb-3 text-center">
+                                <i class="fas fa-list-alt mr-1"></i> Saved Configurations
+                            </h4>
+                            <div class="overflow-x-auto bg-[var(--bg-tertiary)] rounded-lg">
                                 <table class="min-w-full divide-y divide-[var(--border-color)]">
-                                    <thead>
+                                    <thead class="bg-[var(--bg-secondary)]">
                                         <tr>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Provider</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Model</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Default</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Provider</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Model</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Default</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-[var(--border-color)]">
+                                    <tbody class="divide-y divide-[var(--border-color)] bg-[var(--bg-primary)]">
                                         <template x-for="config in llmConfigs" :key="config.id">
-                                            <tr class="hover:bg-[var(--bg-tertiary)]">
-                                                <td class="px-4 py-2 text-sm" x-text="config.provider"></td>
-                                                <td class="px-4 py-2 text-sm" x-text="config.model"></td>
-                                                <td class="px-4 py-2 text-sm">
+                                            <tr class="hover:bg-[var(--bg-tertiary)] transition-colors">
+                                                <td class="px-4 py-3 text-sm" x-text="config.provider"></td>
+                                                <td class="px-4 py-3 text-sm" x-text="config.model"></td>
+                                                <td class="px-4 py-3 text-sm">
                                                     <span x-show="config.is_default" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                                        Default
+                                                        <i class="fas fa-check mr-1"></i> Default
                                                     </span>
                                                 </td>
-                                                <td class="px-4 py-2 text-sm">
-                                                    <button @click="setDefaultLLMConfig(config.id)" x-show="!config.is_default" class="text-indigo-600 hover:text-indigo-900 mr-2">
-                                                        Set Default
+                                                <td class="px-4 py-3 text-sm space-x-2">
+                                                    <button @click="setDefaultLLMConfig(config.id)" x-show="!config.is_default" class="text-indigo-600 hover:text-indigo-900 transition-colors">
+                                                        <i class="fas fa-star mr-1"></i> Set Default
                                                     </button>
-                                                    <button @click="editLLMConfig(config)" class="text-blue-600 hover:text-blue-900 mr-2">
-                                                        Edit
+                                                    <button @click="editLLMConfig(config)" class="text-blue-600 hover:text-blue-900 transition-colors">
+                                                        <i class="fas fa-edit mr-1"></i> Edit
                                                     </button>
-                                                    <button @click="duplicateLLMConfig(config)" class="text-green-600 hover:text-green-900 mr-2">
-                                                        Duplicate
+                                                    <button @click="duplicateLLMConfig(config)" class="text-green-600 hover:text-green-900 transition-colors">
+                                                        <i class="fas fa-copy mr-1"></i> Duplicate
                                                     </button>
-                                                    <button @click="deleteLLMConfig(config.id)" class="text-red-600 hover:text-red-900">
-                                                        Delete
+                                                    <button @click="deleteLLMConfig(config.id)" class="text-red-600 hover:text-red-900 transition-colors">
+                                                        <i class="fas fa-trash-alt mr-1"></i> Delete
                                                     </button>
                                                 </td>
                                             </tr>
@@ -635,63 +853,75 @@
                                 </table>
                             </div>
                             <div x-show="llmConfigs.length === 0" class="text-center py-4 text-[var(--text-muted)]">
-                                No configurations saved yet.
+                                <i class="fas fa-info-circle mr-1"></i> No configurations saved yet.
                             </div>
                         </div>
                     </div>
                     <!-- Environment Variables Section -->
                     <div class="card space-y-6">
-                        <h3 class="text-lg font-semibold text-center">Environment Variables</h3>
+                        <h3 class="text-lg font-semibold text-center">
+                            <i class="fas fa-key mr-1"></i> Environment Variables
+                        </h3>
                         <!-- Add/Edit Environment Variable Form -->
-                        <div class="p-4 border border-[var(--border-color)] rounded-md">
-                            <h4 class="text-md font-medium mb-4 text-center">Add/Edit Environment Variable</h4>
+                        <div class="p-4 border border-[var(--border-color)] rounded-lg">
+                            <h4 class="text-md font-medium mb-4 text-center">
+                                <i class="fas fa-plus-circle mr-1"></i> Add/Edit Environment Variable
+                            </h4>
                             <div class="space-y-3">
                                 <div>
-                                    <label for="env_key" class="block text-sm font-medium">Key:</label>
-                                    <input type="text" id="env_key" x-model="newEnvVar.key" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., OPENAI_API_KEY">
+                                    <label for="env_key" class="block text-sm font-medium">
+                                        <i class="fas fa-key mr-1"></i> Key:
+                                    </label>
+                                    <input type="text" id="env_key" x-model="newEnvVar.key" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., OPENAI_API_KEY">
                                 </div>
                                 <div>
-                                    <label for="env_value" class="block text-sm font-medium">Value:</label>
-                                    <input type="text" id="env_value" x-model="newEnvVar.value" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., sk-...">
+                                    <label for="env_value" class="block text-sm font-medium">
+                                        <i class="fas fa-lock mr-1"></i> Value:
+                                    </label>
+                                    <input type="text" id="env_value" x-model="newEnvVar.value" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., sk-...">
                                 </div>
                                 <div>
-                                    <label for="env_description" class="block text-sm font-medium">Description:</label>
-                                    <input type="text" id="env_description" x-model="newEnvVar.description" class="mt-1 block w-full rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="e.g., OpenAI API Key for GPT models">
+                                    <label for="env_description" class="block text-sm font-medium">
+                                        <i class="fas fa-info-circle mr-1"></i> Description:
+                                    </label>
+                                    <input type="text" id="env_description" x-model="newEnvVar.description" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., OpenAI API Key for GPT models">
                                 </div>
                                 <div>
-                                    <button @click="saveEnvVariable()" class="w-full inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                                        Save Environment Variable
+                                    <button @click="saveEnvVariable()" class="w-full inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                                        <i class="fas fa-save mr-1"></i> Save Environment Variable
                                     </button>
                                 </div>
                             </div>
                         </div>
                         <!-- Saved Environment Variables List -->
                         <div>
-                            <h4 class="text-md font-medium mb-3 text-center">Saved Environment Variables</h4>
-                            <div class="overflow-x-auto">
+                            <h4 class="text-md font-medium mb-3 text-center">
+                                <i class="fas fa-list-alt mr-1"></i> Saved Environment Variables
+                            </h4>
+                            <div class="overflow-x-auto bg-[var(--bg-tertiary)] rounded-lg">
                                 <table class="min-w-full divide-y divide-[var(--border-color)]">
-                                    <thead>
+                                    <thead class="bg-[var(--bg-secondary)]">
                                         <tr>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Key</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Value</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Description</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Key</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Value</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Description</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-[var(--border-color)]">
+                                    <tbody class="divide-y divide-[var(--border-color)] bg-[var(--bg-primary)]">
                                         <template x-for="variable in envVariables" :key="variable.id">
-                                            <tr class="hover:bg-[var(--bg-tertiary)]">
-                                                <td class="px-4 py-2 text-sm" x-text="variable.key"></td>
-                                                <td class="px-4 py-2 text-sm">
+                                            <tr class="hover:bg-[var(--bg-tertiary)] transition-colors">
+                                                <td class="px-4 py-3 text-sm" x-text="variable.key"></td>
+                                                <td class="px-4 py-3 text-sm">
                                                     <span x-text="'•'.repeat(8)"></span>
                                                 </td>
-                                                <td class="px-4 py-2 text-sm" x-text="variable.description || '-'"></td>
-                                                <td class="px-4 py-2 text-sm">
-                                                    <button @click="editEnvVariable(variable)" class="text-blue-600 hover:text-blue-900 mr-2">
-                                                        Edit
+                                                <td class="px-4 py-3 text-sm" x-text="variable.description || '-'"></td>
+                                                <td class="px-4 py-3 text-sm space-x-2">
+                                                    <button @click="editEnvVariable(variable)" class="text-blue-600 hover:text-blue-900 transition-colors">
+                                                        <i class="fas fa-edit mr-1"></i> Edit
                                                     </button>
-                                                    <button @click="deleteEnvVariable(variable.key)" class="text-red-600 hover:text-red-900">
-                                                        Delete
+                                                    <button @click="deleteEnvVariable(variable.key)" class="text-red-600 hover:text-red-900 transition-colors">
+                                                        <i class="fas fa-trash-alt mr-1"></i> Delete
                                                     </button>
                                                 </td>
                                             </tr>
@@ -700,7 +930,7 @@
                                 </table>
                             </div>
                             <div x-show="envVariables.length === 0" class="text-center py-4 text-[var(--text-muted)]">
-                                No environment variables saved yet.
+                                <i class="fas fa-info-circle mr-1"></i> No environment variables saved yet.
                             </div>
                         </div>
                     </div>
@@ -709,63 +939,60 @@
         </div>
         
         <!-- Job History View -->
-        <div x-show="viewMode === 'history'" class="space-y-4">
+        <div x-show="viewMode === 'history'" class="space-y-4 tab-content">
             <div class="card">
-                <h2 class="text-xl font-semibold mb-4">Translation Job History</h2>
-                
-                <div class="overflow-x-auto">
+                <h2 class="text-xl font-semibold mb-4">
+                    <i class="fas fa-history mr-2"></i> Translation Job History
+                </h2>
+                <div class="overflow-x-auto bg-[var(--bg-tertiary)] rounded-lg">
                     <table class="min-w-full divide-y divide-[var(--border-color)]">
-                        <thead>
+                        <thead class="bg-[var(--bg-secondary)]">
                             <tr>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Job ID</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Filename</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Languages</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Accent/Style</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Status</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Created</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Started</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Completed</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Duration</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Job ID</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Filename</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Languages</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Accent/Style</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Status</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Created</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Duration</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-[var(--border-color)]">
+                        <tbody class="divide-y divide-[var(--border-color)] bg-[var(--bg-primary)]">
                             <template x-for="job in jobHistory" :key="job.job_id">
-                                <tr class="hover:bg-[var(--bg-tertiary)]">
-                                    <td class="px-4 py-2 text-sm" x-text="job.job_id.substring(0, 8) + '...'"></td>
-                                    <td class="px-4 py-2 text-sm" x-text="job.filename || '-'"></td>
-                                    <td class="px-4 py-2 text-sm" x-text="job.source_lang + ' → ' + job.target_lang"></td>
-                                    <td class="px-4 py-2 text-sm" x-text="job.target_language_accent || '-'"></td>
-                                    <td class="px-4 py-2 text-sm">
+                                <tr class="hover:bg-[var(--bg-tertiary)] transition-colors">
+                                    <td class="px-4 py-3 text-sm" x-text="job.job_id.substring(0, 8) + '...'"></td>
+                                    <td class="px-4 py-3 text-sm" x-text="job.filename || '-'"></td>
+                                    <td class="px-4 py-3 text-sm" x-text="job.source_lang + ' → ' + job.target_lang"></td>
+                                    <td class="px-4 py-3 text-sm" x-text="job.target_language_accent || '-'"></td>
+                                    <td class="px-4 py-3 text-sm">
                                         <span x-show="job.status === 'completed'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                            Completed
+                                            <i class="fas fa-check mr-1"></i> Completed
                                         </span>
                                         <span x-show="job.status === 'processing'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                            Processing
+                                            <i class="fas fa-spinner fa-spin mr-1"></i> Processing
                                         </span>
                                         <span x-show="job.status === 'pending'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                                            Pending
+                                            <i class="fas fa-clock mr-1"></i> Pending
                                         </span>
                                         <span x-show="job.status === 'failed'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                                            Failed
+                                            <i class="fas fa-exclamation-triangle mr-1"></i> Failed
                                         </span>
                                     </td>
-                                    <td class="px-4 py-2 text-sm" x-text="new Date(job.created_at).toLocaleString()"></td>
-                                    <td class="px-4 py-2 text-sm" x-text="job.started_at ? new Date(job.started_at).toLocaleString() : '-'"></td>
-                                    <td class="px-4 py-2 text-sm" x-text="job.completed_at ? new Date(job.completed_at).toLocaleString() : '-'"></td>
-                                    <td class="px-4 py-2 text-sm" x-text="job.completed_at && job.started_at ? calculateDurationString(new Date(job.started_at), new Date(job.completed_at)) : '-'"></td>
-                                    <td class="px-4 py-2 text-sm space-x-2 whitespace-nowrap"> <!-- Added space-x-2 and whitespace-nowrap for better button spacing -->
-                                        <button @click="fetchJobDetails(job.job_id)" class="text-indigo-600 hover:text-indigo-900">
-                                            View
+                                    <td class="px-4 py-3 text-sm" x-text="new Date(job.created_at).toLocaleString()"></td>
+                                    <td class="px-4 py-3 text-sm" x-text="job.completed_at && job.started_at ? calculateDurationString(new Date(job.started_at), new Date(job.completed_at)) : '-'"></td>
+                                    <td class="px-4 py-3 text-sm space-x-1 whitespace-nowrap">
+                                        <button @click="fetchJobDetails(job.job_id)" class="text-indigo-600 hover:text-indigo-900 transition-colors">
+                                            <i class="fas fa-eye mr-1"></i> View
                                         </button>
-                                        <button x-show="job.status === 'completed'" @click="downloadTranslation(job.job_id)" class="text-green-600 hover:text-green-900">
-                                            Download translation <!-- Renamed button -->
+                                        <button x-show="job.status === 'completed'" @click="downloadTranslation(job.job_id)" class="text-green-600 hover:text-green-900 transition-colors">
+                                            <i class="fas fa-download mr-1"></i> Download
                                         </button>
-                                        <button x-show="job.status === 'completed'" @click="downloadJobGlossary(job.job_id)" class="text-purple-600 hover:text-purple-900"> <!-- Added glossary download button -->
-                                            Download glossary
+                                        <button x-show="job.status === 'completed'" @click="downloadJobGlossary(job.job_id)" class="text-purple-600 hover:text-purple-900 transition-colors">
+                                            <i class="fas fa-book-open mr-1"></i> Glossary
                                         </button>
-                                        <button @click="deleteJob(job.job_id)" class="text-red-600 hover:text-red-900">
-                                            Delete
+                                        <button @click="deleteJob(job.job_id)" class="text-red-600 hover:text-red-900 transition-colors">
+                                            <i class="fas fa-trash-alt mr-1"></i> Delete
                                         </button>
                                     </td>
                                 </tr>
@@ -773,179 +1000,220 @@
                         </tbody>
                     </table>
                 </div>
-                
-                <div x-show="jobHistory.length === 0" class="text-center py-4 text-[var(--text-muted)]">
-                    No translation jobs found.
+                <div x-show="jobHistory.length === 0" class="text-center py-6 text-[var(--text-muted)]">
+                    <div class="text-4xl mb-3 opacity-50"><i class="fas fa-history"></i></div>
+                    <p>No translation jobs found yet. Start by creating a new translation.</p>
                 </div>
             </div>
         </div>
         
         <!-- Job Details View -->
-        <div x-show="viewMode === 'job-details'" class="space-y-4">
+        <div x-show="viewMode === 'job-details'" class="space-y-4 tab-content">
             <div class="card">
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-xl font-semibold">Job Details</h2>
-                    <button @click="showJobHistory()" class="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                        Back to History
+                    <h2 class="text-xl font-semibold"><i class="fas fa-file-alt mr-2"></i> Job Details</h2>
+                    <button @click="showJobHistory()" class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all">
+                        <i class="fas fa-arrow-left mr-1"></i> Back to History
                     </button>
                 </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 border border-[var(--border-color)] rounded-lg bg-[var(--bg-tertiary)]">
                     <div>
-                        <p><span class="font-medium">Job ID:</span> <span x-text="selectedJob?.job_id"></span></p>
-                        <p><span class="font-medium">Status:</span> <span x-text="selectedJob?.status"></span></p>
-                        <p><span class="font-medium">Created:</span> <span x-text="selectedJob ? new Date(selectedJob.created_at).toLocaleString() : ''"></span></p>
-                        <p><span class="font-medium">Started:</span> <span x-text="selectedJob?.started_at ? new Date(selectedJob.started_at).toLocaleString() : '-'"></span></p>
-                        <p><span class="font-medium">Completed:</span> <span x-text="selectedJob?.completed_at ? new Date(selectedJob.completed_at).toLocaleString() : '-'"></span></p>
-                        <p><span class="font-medium">Duration:</span> <span x-text="selectedJob?.completed_at && selectedJob?.started_at ? calculateDurationString(new Date(selectedJob.started_at), new Date(selectedJob.completed_at)) : '-'"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-fingerprint mr-1"></i> Job ID:</span> <span class="text-sm bg-[var(--bg-secondary)] px-2 py-0.5 rounded" x-text="selectedJob?.job_id"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-info-circle mr-1"></i> Status:</span> 
+                            <span x-show="selectedJob?.status === 'completed'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-check mr-1"></i> Completed
+                            </span>
+                            <span x-show="selectedJob?.status === 'processing'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                <i class="fas fa-spinner fa-spin mr-1"></i> Processing
+                            </span>
+                            <span x-show="selectedJob?.status === 'pending'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                <i class="fas fa-clock mr-1"></i> Pending
+                            </span>
+                            <span x-show="selectedJob?.status === 'failed'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                <i class="fas fa-exclamation-triangle mr-1"></i> Failed
+                            </span>
+                        </p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-calendar-plus mr-1"></i> Created:</span> <span x-text="selectedJob ? new Date(selectedJob.created_at).toLocaleString() : ''"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-play-circle mr-1"></i> Started:</span> <span x-text="selectedJob?.started_at ? new Date(selectedJob.started_at).toLocaleString() : '-'"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-check-circle mr-1"></i> Completed:</span> <span x-text="selectedJob?.completed_at ? new Date(selectedJob.completed_at).toLocaleString() : '-'"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-stopwatch mr-1"></i> Duration:</span> <span x-text="selectedJob?.completed_at && selectedJob?.started_at ? calculateDurationString(new Date(selectedJob.started_at), new Date(selectedJob.completed_at)) : '-'"></span></p>
                     </div>
                     <div>
-                        <p><span class="font-medium">Filename:</span> <span x-text="selectedJob?.filename || '-'"></span></p>
-                        <p><span class="font-medium">Source Language:</span> <span x-text="selectedJob?.source_lang"></span></p>
-                        <p><span class="font-medium">Target Language:</span> <span x-text="selectedJob?.target_lang"></span></p>
-                        <p><span class="font-medium">Accent/Style:</span> <span x-text="selectedJob?.target_language_accent || '-'"></span></p>
-                        <p><span class="font-medium">Provider:</span> <span x-text="selectedJob?.provider || '-'"></span></p>
-                        <p><span class="font-medium">Model:</span> <span x-text="selectedJob?.model"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-file mr-1"></i> Filename:</span> <span x-text="selectedJob?.filename || '-'"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-globe-americas mr-1"></i> Source Language:</span> <span x-text="selectedJob?.source_lang"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-globe-europe mr-1"></i> Target Language:</span> <span x-text="selectedJob?.target_lang"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-microphone-alt mr-1"></i> Accent/Style:</span> <span x-text="selectedJob?.target_language_accent || '-'"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-server mr-1"></i> Provider:</span> <span x-text="selectedJob?.provider || '-'"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-brain mr-1"></i> Model:</span> <span x-text="selectedJob?.model"></span></p>
                     </div>
                 </div>
-                
                 <div x-show="selectedJob?.status === 'processing'" class="mb-4">
                     <p class="mb-1">Progress: <strong x-text="selectedJob?.current_step || 'Processing'"></strong></p>
-                    <div class="w-full bg-[var(--bg-tertiary)] rounded-full h-2.5 mb-2">
+                    <div class="w-full bg-[var(--bg-tertiary)] rounded-full h-2.5 mb-2 overflow-hidden">
                         <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" :style="`width: ${selectedJob?.progress_percent || 0}%`"></div>
                     </div>
                 </div>
-                
-                <div x-show="selectedJob?.status === 'failed'" class="mb-4">
-                    <button @click="deleteJob(selectedJob?.job_id); showJobHistory()" class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                        Delete Job
-                    </button>
-                    <p class="text-sm text-right mb-2"><span x-text="selectedJob?.progress_percent ? selectedJob.progress_percent.toFixed(1) : '0.0'"></span>%</p>
-                </div>
-                
-                <div x-show="selectedJob?.error_info" class="p-3 bg-red-100 border border-red-400 text-red-700 rounded mb-4">
-                    <h3 class="text-md font-semibold mb-1">Error:</h3>
+                <div x-show="selectedJob?.error_info" class="p-4 bg-red-100 border border-red-400 text-red-700 rounded mb-4">
+                    <h3 class="text-md font-semibold mb-1"><i class="fas fa-exclamation-triangle mr-1"></i> Error:</h3>
                     <p class="text-sm" x-text="selectedJob?.error_info"></p>
                 </div>
-                
-                <div x-show="selectedJob?.status === 'completed'" class="mb-4 space-x-2"> <!-- Added space-x-2 for button spacing -->
-                    <button @click="downloadTranslation(selectedJob?.job_id)" class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                        Download Translation
+                <div x-show="selectedJob?.status === 'completed' || selectedJob?.status === 'failed'" class="mb-4 flex flex-wrap gap-2">
+                    <button x-show="selectedJob?.status === 'completed'" @click="downloadTranslation(selectedJob?.job_id)" class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all">
+                        <i class="fas fa-download mr-1"></i> Download Translation
                     </button>
-                    <button @click="downloadJobGlossary(selectedJob?.job_id)" class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"> <!-- Added glossary download button -->
-                        Download glossary
+                    <button x-show="selectedJob?.status === 'completed'" @click="downloadJobGlossary(selectedJob?.job_id)" class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all">
+                        <i class="fas fa-book-open mr-1"></i> Download Glossary
                     </button>
-                    <button @click="deleteJob(selectedJob?.job_id); showJobHistory()" class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                        Delete Job
+                    <button @click="deleteJob(selectedJob?.job_id); showJobHistory()" class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all">
+                        <i class="fas fa-trash-alt mr-1"></i> Delete Job
                     </button>
                 </div>
                 
                 <!-- Include the same tabs as in the translation view -->
-                <div x-show="status.final_document || status.chunks">
+                <div x-show="status.final_document || status.chunks || selectedJob?.chunks">
                     <div class="border-b border-[var(--border-color)] mb-4">
-                        <nav class="-mb-px flex space-x-4" aria-label="Tabs">
-                            <button @click="activeTab = 'full'" :class="{'active': activeTab === 'full'}" class="tab">Full Document</button>
-                            <button @click="activeTab = 'chunks'" :class="{'active': activeTab === 'chunks'}" class="tab">Chunk Pairs</button>
-                            <button @click="activeTab = 'glossary'" :class="{'active': activeTab === 'glossary'}" class="tab">Glossary</button>
-                            <button @click="activeTab = 'logs'" :class="{'active': activeTab === 'logs'}" class="tab">Logs</button>
+                        <nav class="flex flex-wrap -mb-px space-x-4" aria-label="Tabs">
+                            <button @click="activeTab = 'full'" :class="{'active': activeTab === 'full'}" class="tab">
+                                <i class="fas fa-file-alt"></i> Full Document
+                            </button>
+                            <button @click="activeTab = 'chunks'" :class="{'active': activeTab === 'chunks'}" class="tab">
+                                <i class="fas fa-puzzle-piece"></i> Chunk Pairs
+                            </button>
+                            <button @click="activeTab = 'glossary'" :class="{'active': activeTab === 'glossary'}" class="tab">
+                                <i class="fas fa-book"></i> Glossary
+                            </button>
+                            <button @click="activeTab = 'logs'" :class="{'active': activeTab === 'logs'}" class="tab">
+                                <i class="fas fa-list-ul"></i> Logs
+                            </button>
                         </nav>
                     </div>
                     
-                    <!-- Tab Content - Same as in translation view -->
-                    <div>
+                    <!-- Tab Content -->
+                    <div class="tab-content">
                         <!-- Full Document View -->
                         <div x-show="activeTab === 'full'">
-                            <template x-if="status.final_document">
+                            <template x-if="status.final_document || selectedJob?.final_document">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <div class="flex justify-between items-baseline mb-1">
-                                            <h3 class="text-lg font-semibold">Original</h3>
+                                            <h3 class="text-lg font-semibold"><i class="fas fa-file-alt mr-1"></i> Original</h3>
                                             <span class="text-xs text-[var(--text-muted)]" x-text="`Words: ${countWords(selectedJob?.original_content || '')} | Chars: ${(selectedJob?.original_content || '').length}`"></span>
                                         </div>
                                         <textarea readonly :dir="isRtl(selectedJob?.source_lang) ? 'rtl' : 'ltr'" x-text="selectedJob?.original_content" rows="20" class="w-full rounded-md shadow-sm sm:text-sm disabled:opacity-100"></textarea>
                                     </div>
                                     <div>
                                         <div class="flex justify-between items-baseline mb-1">
-                                            <h3 class="text-lg font-semibold">Translated</h3>
-                                            <span class="text-xs text-[var(--text-muted)]" x-text="`Words: ${countWords(status.final_document)} | Chars: ${(status.final_document || '').length}`"></span>
+                                            <h3 class="text-lg font-semibold"><i class="fas fa-language mr-1"></i> Translated</h3>
+                                            <span class="text-xs text-[var(--text-muted)]" x-text="`Words: ${countWords(status.final_document || selectedJob?.final_document || '')} | Chars: ${(status.final_document || selectedJob?.final_document || '').length}`"></span>
                                         </div>
-                                        <div :dir="isRtl(selectedJob?.target_lang) ? 'rtl' : 'ltr'" class="h-[410px] overflow-y-auto border border-[var(--border-color)] rounded-md p-2 bg-[var(--bg-tertiary)]">
-                                            <pre x-text="cleanMarkdown(status.final_document)"></pre>
+                                        <div :dir="isRtl(selectedJob?.target_lang) ? 'rtl' : 'ltr'" class="h-[410px] overflow-y-auto border border-[var(--border-color)] rounded-md p-3 bg-[var(--bg-tertiary)]">
+                                            <pre x-text="cleanMarkdown(status.final_document || selectedJob?.final_document || '')"></pre>
                                         </div>
                                     </div>
                                 </div>
                             </template>
+                            <div x-show="!status.final_document && !selectedJob?.final_document" class="text-center py-6 text-[var(--text-muted)]">
+                                <i class="fas fa-info-circle mr-1"></i> No document data available.
+                            </div>
                         </div>
                         
                         <!-- Chunk Pairs View -->
                         <div x-show="activeTab === 'chunks'" class="space-y-4 max-h-[500px] overflow-y-auto">
-                            <template x-for="(chunk, index) in selectedJob?.chunks" :key="index">
+                            <template x-for="(chunk, index) in selectedJob?.chunks || status.chunks" :key="index">
                                 <div class="border-b border-[var(--border-color)] pb-4">
-                                    <h4 class="text-md font-semibold mb-2">Chunk Pair <span x-text="index + 1"></span></h4>
+                                    <h4 class="text-md font-semibold mb-2"><i class="fas fa-puzzle-piece mr-1"></i> Chunk Pair <span x-text="index + 1"></span></h4>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <h5 class="text-sm font-medium text-[var(--text-muted)] mb-1">Original</h5>
-                                            <pre :dir="isRtl(selectedJob?.source_lang) ? 'rtl' : 'ltr'" x-text="cleanMarkdown(chunk.original_chunk || '')"></pre>
+                                            <h5 class="text-sm font-medium text-[var(--text-muted)] mb-1"><i class="fas fa-file-alt mr-1"></i> Original</h5>
+                                            <pre :dir="isRtl(selectedJob?.source_lang) ? 'rtl' : 'ltr'" class="bg-[var(--bg-tertiary)] rounded p-2" x-text="cleanMarkdown(chunk.original_chunk || '')"></pre>
                                         </div>
                                         <div>
-                                            <h5 class="text-sm font-medium text-[var(--text-muted)] mb-1">Translated</h5>
-                                            <pre :dir="isRtl(selectedJob?.target_lang) ? 'rtl' : 'ltr'" x-text="cleanMarkdown(chunk.translated_chunk || '')"></pre>
+                                            <h5 class="text-sm font-medium text-[var(--text-muted)] mb-1"><i class="fas fa-language mr-1"></i> Translated</h5>
+                                            <pre :dir="isRtl(selectedJob?.target_lang) ? 'rtl' : 'ltr'" class="bg-[var(--bg-tertiary)] rounded p-2" x-text="cleanMarkdown(chunk.translated_chunk || '')"></pre>
                                         </div>
                                     </div>
                                 </div>
                             </template>
+                            <div x-show="(!selectedJob?.chunks || selectedJob?.chunks.length === 0) && (!status.chunks || status.chunks.length === 0)" class="text-center py-4 text-[var(--text-muted)]">
+                                <i class="fas fa-info-circle mr-1"></i> No chunk data available.
+                            </div>
                         </div>
                         
                         <!-- Glossary View -->
                         <div x-show="activeTab === 'glossary'">
-                            <h3 class="text-lg font-semibold mb-2">Translation Glossary</h3>
-                            <div class="overflow-x-auto">
+                            <h3 class="text-lg font-semibold mb-2"><i class="fas fa-book mr-1"></i> Translation Glossary</h3>
+                            <div class="overflow-x-auto bg-[var(--bg-tertiary)] rounded-lg">
                                 <table class="min-w-full divide-y divide-[var(--border-color)]">
-                                    <thead>
+                                    <thead class="bg-[var(--bg-secondary)]">
                                         <tr>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Source Term</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Target Term</th>
-                                            <th class="px-4 py-2 text-left text-sm font-medium text-[var(--text-muted)]">Context</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Source Term</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Target Term</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Context</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-[var(--border-color)]">
-                                        <template x-for="(entry, index) in selectedJob?.glossary" :key="index">
-                                            <tr class="hover:bg-[var(--bg-tertiary)]">
-                                                <td class="px-4 py-2 text-sm" :dir="isRtl(selectedJob?.source_lang) ? 'rtl' : 'ltr'" x-text="entry.source_term"></td>
-                                                <td class="px-4 py-2 text-sm" :dir="isRtl(selectedJob?.target_lang) ? 'rtl' : 'ltr'" x-text="entry.target_term"></td>
-                                                <td class="px-4 py-2 text-sm" x-text="entry.context || '-'"></td>
+                                    <tbody class="divide-y divide-[var(--border-color)] bg-[var(--bg-primary)]">
+                                        <template x-for="(entry, index) in selectedJob?.glossary || status.contextualized_glossary" :key="index">
+                                            <tr class="hover:bg-[var(--bg-tertiary)] transition-colors">
+                                                <td class="px-4 py-3 text-sm" :dir="isRtl(selectedJob?.source_lang) ? 'rtl' : 'ltr'" x-text="entry.source_term || entry.sourceTerm"></td>
+                                                <td class="px-4 py-3 text-sm" :dir="isRtl(selectedJob?.target_lang) ? 'rtl' : 'ltr'" x-text="entry.target_term || (entry.proposedTranslations && entry.proposedTranslations[selectedJob?.target_lang])"></td>
+                                                <td class="px-4 py-3 text-sm" x-text="entry.context || '-'"></td>
                                             </tr>
                                         </template>
                                     </tbody>
                                 </table>
                             </div>
-                            <div x-show="!selectedJob?.glossary || selectedJob?.glossary.length === 0" class="text-center py-4 text-[var(--text-muted)]">
-                                No glossary entries found for this job.
+                            <div x-show="(!selectedJob?.glossary || selectedJob?.glossary.length === 0) && (!status.contextualized_glossary || status.contextualized_glossary.length === 0)" class="text-center py-4 text-[var(--text-muted)]">
+                                <i class="fas fa-info-circle mr-1"></i> No glossary entries found for this job.
                             </div>
-                            
-                            <!-- LLM Configuration View (nested in job details) -->
-                            <div x-show="viewMode === 'llm-config-nested'" class="space-y-4">
-                                <!-- Content removed as it's now in the main LLM Configuration tab -->
-                            </div>
-                            
-                            <!-- Environment Settings View removed as requested -->
                         </div>
                         
                         <!-- Logs View -->
                         <div x-show="activeTab === 'logs'">
-                            <h3 class="text-lg font-semibold mb-2">Logs</h3>
-                            <div class="max-h-96 overflow-y-auto bg-[var(--bg-tertiary)] p-2 rounded border border-[var(--border-color)] text-sm font-mono">
+                            <h3 class="text-lg font-semibold mb-2"><i class="fas fa-list-ul mr-1"></i> Logs</h3>
+                            <div class="max-h-96 overflow-y-auto bg-[var(--bg-tertiary)] p-3 rounded-lg border border-[var(--border-color)] text-sm font-mono">
                                 <template x-for="(log, index) in selectedJob?.logs" :key="index">
-                                    <div x-text="`${log.created_at} [${log.level}] ${log.message}`"></div>
+                                    <div class="py-1 border-b border-[var(--border-color)] border-opacity-20" x-text="`${new Date(log.created_at).toLocaleTimeString()} [${log.level}] ${log.message}`"></div>
                                 </template>
+                                <div x-show="!selectedJob?.logs || selectedJob?.logs.length === 0" class="text-center py-4 text-[var(--text-muted)]">
+                                    <i class="fas fa-info-circle mr-1"></i> No logs available.
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>Turjuman - LLM Powered Books & Long Text Translator</p>
+            <p class="mt-1">
+                <a href="https://github.com/abdallah-ali-abdallah/turjuman-book-translator" target="_blank">
+                    <i class="fab fa-github mr-1"></i> GitHub Repository
+                </a>
+            </p>
+        </div>
     </div>
-
+    
     <script src="/static/js/app.js"></script>
+    
+    <script>
+        // Add this function to your app.js or include it here
+        function resetTranslation() {
+            // Reset translation-related variables
+            if (typeof translationApp === 'function') {
+                const app = Alpine.store('translationApp');
+                if (app) {
+                    app.jobId = null;
+                    app.status = {};
+                    app.logs = [];
+                    app.isLoading = false;
+                    app.activeTab = 'full';
+                    app.inputData.original_content = '';
+                    app.originalFilename = '';
+                }
+            }
+        }
+    </script>
 </body>
 </html>
