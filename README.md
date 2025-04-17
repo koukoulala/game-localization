@@ -13,12 +13,14 @@ Ever felt daunted by translating a massive book (like 500 pages and over 150,000
 Turjuman uses a smart pipeline powered by LangGraph 🦜🔗:
 
 1. **🚀 init_translation**: Start the translation job
-2. **🧐 terminology_unification**: Find and unify key terms
+2. **🧐 terminology_unification**: Find and unify key terms, User can provide manual list of prefered glossary or dicitenary (word paires)
 3. **✂️ chunk_document**: Split the book into chunks
 4. **🌐 initial_translation**: Translate chunks in parallel
 5. **🤔 critique_stage**: Review translations, catch errors
 6. **✨ final_translation**: Refine translations
 7. **📜 assemble_document**: Stitch everything back together
+
+![Theme](docs/ui_home.png)
 
 ### 📊 Translation Flow
 
@@ -63,69 +65,6 @@ flowchart TD
 
 ---
 
-## 🛠️ Setup & Installation using Docker (Recommended)
-
-**Recommended LLM Models**
-- **Online**: Gemini Flash/Pro
-- **Local**: Gemma3 / Aya / Mistral 
-
-
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) installed on your system.
-- **API Keys**: Get your API keys for OpenAI, Anthropic, Gemini ..etc to provide access to advanced LLM
-- **Ollama**: You can use Turjuman locally without paying for LLM by installing Ollama or any Local Inference server like LMstudio, vLLM, LLamaCPP ..etc, take alook at sample.env for details
-
-
-## Prepare Environment Variables
-
-copy `sample.env.file` to `.env` and modify the prefered LLM and keys
-
-### Building the Docker Image
-
-1. Open a terminal and navigate to the project root directory (where the `Dockerfile` is located).
-2. Build the Docker image with the following command:
-
-   ```bash
-   docker build -t turjuman-book-translator .
-   ```
-
-   This command will create a Docker image named `turjuman-book-translator`.
-
-### Basic Run with web UI (include streaming)
-
-To run the app on the default bridge network, map port 8051:8051, If you use Ollama or self-hosted LLM then you must use the option **--add-host** to enable all self hosting LLM
-
-```bash
-docker run --rm -it \
-   -v "$(pwd):/app/" \
-  --network bridge \
-  -p 8051:8051 \
-  --add-host host.docker.internal:host-gateway \
-  turjuman-book-translator
-```
-
-- `--network bridge` (optional) specifies the default Docker bridge network.
-- `-p 8051:8051` maps port 8051 of the container to port 8051 on your host.
-- `--add-host host.docker.internal:host-gateway` allows the container to access services running on the host (ollama or local ai service) using the name `host.docker.internal`.
-
-The application will now be accessible at [http://localhost:8051](http://localhost:8051).
-
----
-## 🚀 Using Turjuman via integrated web UI 
-
-visit [http://localhost:8051](http://localhost:8051)
-- select file to translate
-- modify the source and target language 
-- modify the "Accent and style" if needed (this option can make translation more funny, spicy or professional by default)
-- start translation, after few seconds both logs, text chunks will update dynamically
-- after translation progress reach 100% you can view or download the final MarkDown file 
-- you can change the theme from top drop menue (7 themes available) 
-- you can switch the view between chunk or full document to review the translated content chunk by chunk 
-
-![Integarted Web UI](docs/ui_1.png)
-![Chunk view](docs/ui_chunks.png)
-![Theme](docs/ui_themes.png)
 
 ## 🛠️ Setup & Installation using conda or venv (for development)
 
@@ -143,7 +82,7 @@ git clone <your-repo-url>
 cd turjuman-book-translator
 ```
 
-3. **Create Conda Environment**
+3. **Create Conda Environment or use python venv**
 
 ```bash
 conda create -n turjuman_env python=3.12 -y
@@ -153,7 +92,8 @@ conda activate turjuman_env
 4. **Install Dependencies**
 
 ```bash
-pip install langchain langgraph langchain-openai langchain-anthropic langchain-google-genai langchain-community tiktoken python-dotenv markdown-it-py pydantic "langserve[server]" sse-starlette aiosqlite uv streamlit
+# Install all needed libs
+pip install -r requirements.txt
 ```
 
 5. **Configure Environment Variables**
@@ -162,6 +102,11 @@ pip install langchain langgraph langchain-openai langchain-anthropic langchain-g
 cp sample.env.file .env
 # Edit .env and add your API keys
 ```
+**Recommended LLM Models**
+- **Online**: Gemini Flash/Pro
+- **Local**: Gemma3 / Aya / Mistral 
+
+
 
 6. **Run Backend Server**
 
@@ -169,26 +114,57 @@ cp sample.env.file .env
 uvicorn src.server:app --host 0.0.0.0 --port 8051 --reload
 ```
 
-7. **Run Streamlit Frontend**
+7. **Run the Web UI**
 
-```bash
-streamlit run translate_over_api_frontend_streamlit.py
-```
+The application will now be accessible at [http://localhost:8051](http://localhost:8051).
 
 ---
+## 🚀 Using Turjuman via integrated web UI 
 
-## 🚀 Using Turjuman via Streamlit
+visit [http://localhost:8051](http://localhost:8051)
+- Go to "Configuration" tab and create a new default LLM configurations (LLM provider / model / ...etc)
+- save the configuration profile (optional you can create multiple profile and select one of them as default profile)
+- Select "New Translation" then upload file to translate or paste text
+- modify the source and target language 
+- modify the "Accent and style" if needed (this option can make translation more funny, spicy or professional by default)
+- start translation, after few seconds both logs, text chunks will update dynamically
+- after translation progress reach 100% you can view or download the translated file or text
+- you can change the theme from top drop menue (7 themes available) 
+- you can switch the view between chunk or full document to review the translated content chunk by chunk 
+![Integarted Web UI](docs/ui_1.png)
+![Completed Task](docs/ui_view_translation.png)
+![Job History](docs/ui_job_history.png)
+![Theme](docs/ui_themes.png)
+![Chunk view](docs/ui_chunks.png)
+![Glossary Management](docs/ui_glossary_managment.png)
+![Configuration](docs/ui_config.png)
 
-1. **Configure**: Set API URL, source & target languages, provider, and model
-2. **Upload**: Your `.md` or `.markdown` file
-3. **Start Translation**: Click the button and watch the magic happen! ✨
-4. **Review**: See original and translated side-by-side, or chunk-by-chunk
-5. **Download**: Get your translated book or the full JSON response
+### 🔄 Job Queue & History
+Turjuman includes a robust job management system:
+- Track all translation jobs with detailed status information (completed, processing, pending, failed)
+- View comprehensive job details including languages, duration, and timestamps
+- Download completed translations directly from the history view
+- Access job-specific glossaries generated during translation
+- View detailed logs and progress information for each job
 
----
-## 🖼️ Streamlit App Preview (old UI)
+### 📚 Glossary Management
+Create and manage custom glossaries to ensure consistent terminology:
+- Build custom glossary tables with source and target term pairs
+- Upload glossary files in JSON format
+- Add individual terms through the user interface
+- Set default glossaries for automatic use in translations
+- Download, edit, and delete glossaries as needed
+- Option for automatic terminology extraction during translation
 
-![Streamlit UI](docs/streamlit.jpg)
+### ⚙️ Configuration Management
+Manage LLM settings and environment variables directly from the UI:
+- Configure multiple LLM providers and models
+- Create and save different configuration profiles
+- Set default configurations for quick access
+- Securely manage environment variables (API keys, etc.)
+- Filter available models by keyword
+- Duplicate existing configurations for easy modification
+
 
 ---
 ##  BASH Script Client
@@ -241,9 +217,9 @@ The script submits the job via the API. Since the API call is synchronous, the s
 ## 🗺️ Future Plans
 
 - Support for PDF, DOCX, and other formats
-- More advanced glossary and terminology management
+- Further enhancements to glossary and terminology management
 - Interactive editing and feedback loop
-- Better error handling and progress tracking
+- Advanced customization options for translation styles
 
 ---
 

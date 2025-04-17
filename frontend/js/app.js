@@ -689,9 +689,7 @@ connectToJobStream(jobId) {
         
         canSaveLLMConfig() {
             return this.newLLMConfig.provider &&
-                   this.newLLMConfig.model &&
-                   this.newLLMConfig.source_lang &&
-                   this.newLLMConfig.target_lang;
+                   this.newLLMConfig.model;
         },
         
         async saveLLMConfig() {

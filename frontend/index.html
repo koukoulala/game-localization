@@ -702,11 +702,11 @@
         
         <!-- Configuration View (LLM + Environment) -->
         <div x-show="viewMode === 'llm-config'" class="space-y-4 tab-content">
-            <div class="max-w-5xl mx-auto">
+            <div class="max-w-10xl mx-auto">
                 <h2 class="text-xl font-semibold mb-6 text-center">
                     <i class="fas fa-cogs mr-2"></i> Configuration
                 </h2>
-                <div class="space-y-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-[100%] mx-auto">
                     <!-- LLM Configuration Section -->
                     <div class="card space-y-6">
                         <h3 class="text-lg font-semibold text-center">
@@ -722,11 +722,6 @@
                                     <p class="mb-2"><span class="font-medium"><i class="fas fa-link mr-1"></i> API URL:</span> <span x-text="defaultLLMConfig?.api_url || '-'"></span></p>
                                     <p class="mb-2"><span class="font-medium"><i class="fas fa-server mr-1"></i> Provider:</span> <span x-text="defaultLLMConfig?.provider || '-'"></span></p>
                                     <p class="mb-2"><span class="font-medium"><i class="fas fa-brain mr-1"></i> Model:</span> <span x-text="defaultLLMConfig?.model || '-'"></span></p>
-                                </div>
-                                <div>
-                                    <p class="mb-2"><span class="font-medium"><i class="fas fa-globe-americas mr-1"></i> Source Language:</span> <span x-text="defaultLLMConfig?.source_lang || '-'"></span></p>
-                                    <p class="mb-2"><span class="font-medium"><i class="fas fa-globe-europe mr-1"></i> Target Language:</span> <span x-text="defaultLLMConfig?.target_lang || '-'"></span></p>
-                                    <p class="mb-2"><span class="font-medium"><i class="fas fa-microphone-alt mr-1"></i> Accent/Style:</span> <span x-text="defaultLLMConfig?.target_language_accent || '-'"></span></p>
                                 </div>
                             </div>
                             <div x-show="!defaultLLMConfig" class="text-center py-4 text-[var(--text-muted)]">
@@ -778,24 +773,6 @@
                                             <option :value="model" x-text="model"></option>
                                         </template>
                                     </select>
-                                </div>
-                                <div>
-                                    <label for="llm_source_lang" class="block text-sm font-medium">
-                                        <i class="fas fa-globe-americas mr-1"></i> Default Source Language:
-                                    </label>
-                                    <input type="text" id="llm_source_lang" x-model="newLLMConfig.source_lang" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., english">
-                                </div>
-                                <div>
-                                    <label for="llm_target_lang" class="block text-sm font-medium">
-                                        <i class="fas fa-globe-europe mr-1"></i> Default Target Language:
-                                    </label>
-                                    <input type="text" id="llm_target_lang" x-model="newLLMConfig.target_lang" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., arabic">
-                                </div>
-                                <div>
-                                    <label for="llm_accent" class="block text-sm font-medium">
-                                        <i class="fas fa-microphone-alt mr-1"></i> Default Accent/Style:
-                                    </label>
-                                    <input type="text" id="llm_accent" x-model="newLLMConfig.target_language_accent" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm" placeholder="e.g., professional, Egyptian Arabic">
                                 </div>
                                 <div class="flex items-center">
                                     <input type="checkbox" id="llm_default" x-model="newLLMConfig.set_as_default" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">

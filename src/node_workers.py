@@ -99,7 +99,7 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
             target_accent_guidance=target_accent_guidance # Pass the accent guidance
         )
         # Log the actual prompt being sent (DEBUG level)
-        log_to_state(state_essentials, f"{worker_log_prefix}: Sending translation prompt:\n---\n{translation_system_prompt}\n---", "DEBUG", node=NODE_NAME)
+        # log_to_state(state_essentials, f"{worker_log_prefix}: Sending translation prompt:\n---\n{translation_system_prompt}\n---", "DEBUG", node=NODE_NAME)
 
         translation_messages = [("system", translation_system_prompt)]
         translation_prompt_template = ChatPromptTemplate.from_messages(translation_messages)
@@ -291,7 +291,7 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
 
         # --- Filter glossary based on original chunk ---
         filtered_glossary = filter_and_prioritize_terminology(original_chunk, full_glossary)
-        log_to_state(state_essentials, f"{worker_log_prefix}: Filtered finalization glossary contains {len(filtered_glossary)} items.", "DEBUG", node=NODE_NAME)
+        log_to_state(state_essentials, f"{worker_log_prefix}: Filtered glossary contains {len(filtered_glossary)} items.", "DEBUG", node=NODE_NAME)
 
         # Build guidance string for the prompt
         final_term_list = []
