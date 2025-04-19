@@ -118,9 +118,11 @@ document.addEventListener('alpine:init', () => {
             return this.inputData.original_content.trim() !== '' &&
                    this.inputData.config.source_lang.trim() !== '' &&
                    this.inputData.config.target_lang.trim() !== '' &&
-                   this.inputData.config.provider &&
-                   this.inputData.config.model &&
-                   this.apiUrl.trim() !== '';
+                   this.apiUrl.trim() !== '' &&
+                   (
+                       (this.inputData.config.provider && this.inputData.config.model) || // Explicitly set
+                       (this.defaultLLMConfig && this.defaultLLMConfig.provider && this.defaultLLMConfig.model) // Or default exists
+                   );
         },
 
         // --- Methods ---
