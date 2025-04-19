@@ -36,12 +36,12 @@ API_KEY_ENV_VARS = {
 PROVIDER_DEFAULTS = {
     "openai": {"model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"},
     "anthropic": {"model": "claude-3-haiku-20240307", "base_url": "https://api.anthropic.com"},
-    "gemini": {"model": "gemini-2.5-pro-preview-03-25", "base_url": None}, # Base URL not applicable
+    "gemini": {"model": "gemini-2.5-pro-preview-03-25", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"}, # Base URL not applicable
     "openrouter": {"model": "google/gemini-2.5-pro-preview-03-25", "base_url": "https://openrouter.ai/api/v1"},
     "mistral": {"model": "mistral-large-2402", "base_url": "https://api.mistral.ai/v1"}, # Uses internal default endpoint
     "deepseek": {"model": "deepseek-chat", "base_url": "https://api.deepseek.com/v1"},
-    "ollama": {"model": "llama3", "base_url": "http://host.docker.internal:11434"},
-    "localai": {"model": "gpt-3.5-turbo", "base_url": "http://host.docker.internal:8083/v1"},
+    "ollama": {"model": "llama3", "base_url": "http://localhost:11434"},
+    "localai": {"model": "gpt-3.5-turbo", "base_url": "http://localhost:8083/v1"},
 }
 
 # --- Helper Functions ---
@@ -291,18 +291,17 @@ def list_available_providers() -> list[dict]:
 
         # Build /v1/models URL correctly
         base_url = base_url.rstrip("/")
-        if base_url.endswith("/v1"):
+        if base_url.endswith("/v1") or provider == "gemini":
             models_url = base_url + "/models"
         else:
             models_url = base_url + "/v1/models"
 
         headers = {}
         if api_key:
-            if provider in ["openai", "openrouter", "deepseek", "localai", "mistral"]:
+            if provider in ["openai", "openrouter", "deepseek", "localai", "mistral", "gemini"]:
                 headers["Authorization"] = f"Bearer {api_key}"
             elif provider == "anthropic":
                 headers["x-api-key"] = api_key
-            # Gemini uses API key as query param, skip for now
         try:
             resp = requests.get(models_url, headers=headers, timeout=10)
             resp.raise_for_status()
@@ -328,9 +327,7 @@ def list_available_providers() -> list[dict]:
         print("\nAvailable LLM Providers and Models (fetched dynamically):")
         print("=" * 60)
         for p in providers:
-            print(f"Provider: {p['provider']}")
-            for m in p['models']:
-                print(f"   - {m}")
+            print(f"Provider: {p['provider']}, has total of: {len(p['models'])} models available")
         print("=" * 60 + "\n")
     else:
         print("\nNo LLM providers configured or API keys missing.\n")
