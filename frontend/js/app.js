@@ -320,11 +320,27 @@ async startTranslation() {
         current_step: 'Initializing...', progress_percent: 0, logs: [], chunks: null, translated_chunks: null, final_document: null, error_info: null, critiques: null, metrics: null
     };
 
+    // Determine the effective configuration to send
+    let configToSend = { ...this.inputData.config }; // Start with current config
+
+    // If provider or model is missing in the current config, try using the default
+    if ((!configToSend.provider || !configToSend.model) && this.defaultLLMConfig && this.defaultLLMConfig.provider && this.defaultLLMConfig.model) {
+        console.log('Using default LLM config for submission:', this.defaultLLMConfig);
+        configToSend.provider = this.defaultLLMConfig.provider;
+        configToSend.model = this.defaultLLMConfig.model;
+        // Optionally overwrite other config fields from default if they are empty in inputData?
+        // Example: if (!configToSend.source_lang) configToSend.source_lang = this.defaultLLMConfig.source_lang;
+        // For now, just ensuring provider and model are set from default if missing.
+    } else {
+         console.log('Using explicitly set config for submission:', configToSend);
+    }
+
+
     const requestBody = {
         job_id: this.jobId,
         original_content: this.inputData.original_content,
         original_filename: this.originalFilename,
-        config: this.inputData.config,
+        config: configToSend, // Use the determined config
         glossary_id: this.selectedGlossaryId // Add selected glossary ID
     };
 
