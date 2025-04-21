@@ -8,7 +8,7 @@ from .state import LogEntry, LogLevel, TranslationState
 # Centralized flags to control verbose logging across nodes.
 # Modify these values to enable/disable specific log categories.
 LOGGING_CONFIG = {
-    "LOG_LLM_PROMPTS": True,  # Log full LLM prompts (can be verbose)
+    "LOG_LLM_PROMPTS": False,  # Log full LLM prompts (can be verbose)
     "LOG_CHUNK_PROCESSING": False, # Log details during chunk processing steps
     "LOG_API_RESPONSES": False, # Log full API responses (can be large)
     # Add more flags as needed
