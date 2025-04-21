@@ -90,7 +90,7 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         effective_accent = config.get('effective_accent', 'professional') # Get from config (defaulted in init)
         target_accent_guidance = f"using the {effective_accent} accent/dialect"
 
-        translation_system_prompt = prompts["prompts"]["translation"]["system"].format(
+        translation_system_prompt = prompts["prompts"]["translation"]["user"].format(
             content_type=enhanced_content_type,
             source_language=config.get('source_language', 'english'),
             target_language=config.get('target_language', 'arabic'),
@@ -101,7 +101,7 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         # Log the actual prompt being sent (DEBUG level)
         # log_to_state(state_essentials, f"{worker_log_prefix}: Sending translation prompt:\n---\n{translation_system_prompt}\n---", "DEBUG", node=NODE_NAME)
 
-        translation_messages = [("system", translation_system_prompt)]
+        translation_messages = [("user", translation_system_prompt)]
         translation_prompt_template = ChatPromptTemplate.from_messages(translation_messages)
         translation_chain = translation_prompt_template | llm | StrOutputParser()
         
@@ -175,7 +175,7 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
             prompts = yaml.safe_load(f)
 
         messages = [
-            ("system", prompts["prompts"]["critique"]["system"])
+            ("user", prompts["prompts"]["critique"]["user"])
         ]
         prompt_template = ChatPromptTemplate.from_messages(messages)
         chain = prompt_template | llm | StrOutputParser() # Expecting JSON string
@@ -208,7 +208,7 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         # Log the formatted prompt AFTER invoking
         try:
             # Format the prompt using the context that was actually sent
-            formatted_critique_prompt = prompts["prompts"]["critique"]["system"].format(**critique_context)
+            formatted_critique_prompt = prompts["prompts"]["critique"]["user"].format(**critique_context)
             # log_to_state(state_essentials, f"{worker_log_prefix}: Critique prompt sent (using filtered glossary):\n---\n{formatted_critique_prompt}\n---", "DEBUG", node=NODE_NAME)
         except KeyError as fmt_err:
              log_to_state(state_essentials, f"{worker_log_prefix}: Error formatting critique prompt for logging: Missing key {fmt_err}", "WARNING", node=NODE_NAME)
@@ -284,7 +284,7 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
 
         # Use the correct prompt key from prompts.yaml
         messages = [
-            ("system", prompts["prompts"]["final_translation"]["system"])
+            ("user", prompts["prompts"]["final_translation"]["user"])
         ]
         prompt_template = ChatPromptTemplate.from_messages(messages)
         chain = prompt_template | llm | StrOutputParser() # Expecting refined text
@@ -321,7 +321,7 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         # Log the formatted prompt AFTER invoking
         try:
             # Format the prompt using the context that was actually sent
-            formatted_finalize_prompt = prompts["prompts"]["final_translation"]["system"].format(**finalize_context)
+            formatted_finalize_prompt = prompts["prompts"]["final_translation"]["user"].format(**finalize_context)
             # log_to_state(state_essentials, f"{worker_log_prefix}: Finalize prompt sent (using filtered glossary):\n---\n{formatted_finalize_prompt}\n---", "DEBUG", node=NODE_NAME)
         except KeyError as fmt_err:
              log_to_state(state_essentials, f"{worker_log_prefix}: Error formatting finalize prompt for logging: Missing key {fmt_err}", "WARNING", node=NODE_NAME)

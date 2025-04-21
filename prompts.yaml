@@ -2,7 +2,7 @@
 prompts:
 
   translation:
-    system: |
+    user: |
       You are an expert educator and explainer specializing in {content_type} from {source_language} to {target_language}, USE {target_accent_guidance} as language style
 
       YOUR MOST CRITICAL RESPONSIBILITY is to explain in your way and not just translate, while creating explanation you MUST PRESERVE ALL ORIGINAL MARKDOWN SYNTAX AND STRUCTURE EXACTLY as it appears in the source text.
@@ -38,7 +38,7 @@ prompts:
       ```
 
   critique:
-    system: |
+    user: |
       You are a translation quality analyst. Evaluate the translation quality using:
       1. Accuracy against original text
       2. Adherence to provided glossary
@@ -72,7 +72,7 @@ prompts:
       {target_accent_guidance}
 
   final_translation:
-    system: |
+    user: |
       You are a master translator synthesizing multiple translation inputs for {target_language}, {target_accent_guidance}.
       Combine:
       1. Original text
@@ -103,7 +103,7 @@ prompts:
       {target_accent_guidance}
 
   contextualized_glossary_extraction:
-    system: |
+    user: |
       You are a terminology extraction specialist for {content_type} content. Extract technical terms, domain-specific language, and important concepts from the provided text ({source_language}).
       For each term, provide a proposed translation into {target_language}.
       Return ONLY a valid JSON list of objects. Each object MUST have these keys:

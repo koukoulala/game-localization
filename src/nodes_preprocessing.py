@@ -44,11 +44,11 @@ def terminology_extraction_worker(worker_input: Dict[str, Any]) -> Dict[str, Any
         with open(prompts_path) as f:
             prompts = yaml.safe_load(f)
 
-        prompt_text = prompts["prompts"]["contextualized_glossary_extraction"]["system"] # Use renamed key
+        prompt_text = prompts["prompts"]["contextualized_glossary_extraction"]["user"] # Use renamed key
 
         llm = get_llm_client(config)
 
-        messages = [("system", prompt_text)]
+        messages = [("user", prompt_text)]
         prompt_template = ChatPromptTemplate.from_messages(messages)
         chain = prompt_template | llm | StrOutputParser()
 
@@ -336,7 +336,7 @@ def terminology_unification(state: TranslationState) -> TranslationState:
         with open(prompts_path) as f:
             prompts = yaml.safe_load(f)
 
-        prompt_text = prompts["prompts"]["contextualized_glossary_extraction"]["system"] # Use renamed key
+        prompt_text = prompts["prompts"]["contextualized_glossary_extraction"]["user"] # Use renamed key
 
         llm = get_llm_client(config)
 
