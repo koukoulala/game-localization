@@ -44,13 +44,13 @@ def run_parallel_translation(state: TranslationState) -> TranslationState:
     if not state.get("translated_chunks"):
          # Initialize if chunking happened but this somehow got reset
          state["translated_chunks"] = [None] * len(chunks)
-         log_to_state(state, "Initialized empty translated_chunks list.", "DEBUG", node=NODE_NAME)
+         log_to_state(state, "Initialized empty translated_chunks list.", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
 
 
     config = state.get("config", {})
     terminology = state.get("contextualized_glossary", []) # Use the CORRECT key from state.py
     # Add logging to check terminology right after retrieval
-    # log_to_state(state, f"Retrieved 'contextualized_glossary' from state. Type: {type(terminology)}, Length: {len(terminology) if isinstance(terminology, list) else 'N/A'}", "DEBUG", node=NODE_NAME)
+    log_to_state(state, f"Retrieved 'contextualized_glossary' from state. Type: {type(terminology)}, Length: {len(terminology) if isinstance(terminology, list) else 'N/A'}", "DEBUG", node=NODE_NAME, log_type="LOG_API_RESPONSES") # Potentially large data
 
     total_chunks = len(chunks)
     state["parallel_worker_results"] = [] # Reset results list for this run
@@ -121,7 +121,7 @@ def run_parallel_translation(state: TranslationState) -> TranslationState:
                     chunk_size = result.get("chunk_size", "N/A")
                     term_count = result.get("filtered_term_count", "N/A")
                     prompt_chars = result.get("prompt_char_count", "N/A") # Get prompt char count
-                    log_to_state(state, f"Successfully translated chunk {index + 1}/{total_chunks} (Size: {chunk_size} chars, Terms: {term_count}, Prompt Chars: {prompt_chars}).", "DEBUG", node=NODE_NAME)
+                    log_to_state(state, f"Successfully translated chunk {index + 1}/{total_chunks} (Size: {chunk_size} chars, Terms: {term_count}, Prompt Chars: {prompt_chars}).", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
                 else:
                     # Should not happen if worker logic is correct, but handle defensively
                     log_to_state(state, f"Worker for chunk {index + 1}/{total_chunks} returned unexpected result: {result}", "WARNING", node=NODE_NAME)

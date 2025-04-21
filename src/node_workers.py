@@ -55,13 +55,13 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         # --- Terminology Filtering ---
         try:
             terminology_json = json.dumps(terminology, indent=2)
-            # log_to_state(state_essentials, f"{worker_log_prefix}: Full 'contextualized_glossary' received ({len(terminology)} items):\n{terminology_json}", "DEBUG", node=NODE_NAME) # Disabled verbose log
+            log_to_state(state_essentials, f"{worker_log_prefix}: Full 'contextualized_glossary' received ({len(terminology)} items):\n{terminology_json}", "DEBUG", node=NODE_NAME, log_type="LOG_API_RESPONSES") # Potentially large data
         except Exception as json_err:
             log_to_state(state_essentials, f"{worker_log_prefix}: Could not serialize full terminology for logging: {json_err}", "WARNING", node=NODE_NAME)
 
         # Note: Using the original (non-escaped) chunk_text for filtering
         filtered_terminology = filter_and_prioritize_terminology(chunk_text, terminology)
-        # log_to_state(state_essentials, f"{worker_log_prefix}: Filtered terminology contains {len(filtered_terminology)} items.", "DEBUG", node=NODE_NAME)
+        log_to_state(state_essentials, f"{worker_log_prefix}: Filtered terminology contains {len(filtered_terminology)} items.", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
 
         # Build terminology guidance string from the filtered list
         term_guidance_list = []
@@ -98,8 +98,8 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
             filtered_term_guidance=term_guidance, # Pass the filtered glossary
             target_accent_guidance=target_accent_guidance # Pass the accent guidance
         )
-        # Log the actual prompt being sent (DEBUG level)
-        # log_to_state(state_essentials, f"{worker_log_prefix}: Sending translation prompt:\n---\n{translation_system_prompt}\n---", "DEBUG", node=NODE_NAME)
+        # Log the actual prompt being sent (DEBUG level, controlled by config)
+        log_to_state(state_essentials, f"{worker_log_prefix}: Sending translation prompt:\n---\n{translation_system_prompt}\n---", "DEBUG", node=NODE_NAME, log_type="LOG_LLM_PROMPTS")
 
         translation_messages = [("user", translation_system_prompt)]
         translation_prompt_template = ChatPromptTemplate.from_messages(translation_messages)
@@ -182,7 +182,7 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
 
         # --- Filter glossary based on original chunk ---
         filtered_glossary = filter_and_prioritize_terminology(original_chunk, full_glossary)
-        log_to_state(state_essentials, f"{worker_log_prefix}: Filtered critique glossary contains {len(filtered_glossary)} items.", "DEBUG", node=NODE_NAME)
+        log_to_state(state_essentials, f"{worker_log_prefix}: Filtered critique glossary contains {len(filtered_glossary)} items.", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
 
         # Build guidance string for the prompt
         critique_term_list = []
@@ -209,7 +209,7 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         try:
             # Format the prompt using the context that was actually sent
             formatted_critique_prompt = prompts["prompts"]["critique"]["user"].format(**critique_context)
-            # log_to_state(state_essentials, f"{worker_log_prefix}: Critique prompt sent (using filtered glossary):\n---\n{formatted_critique_prompt}\n---", "DEBUG", node=NODE_NAME)
+            log_to_state(state_essentials, f"{worker_log_prefix}: Critique prompt sent (using filtered glossary):\n---\n{formatted_critique_prompt}\n---", "DEBUG", node=NODE_NAME, log_type="LOG_LLM_PROMPTS")
         except KeyError as fmt_err:
              log_to_state(state_essentials, f"{worker_log_prefix}: Error formatting critique prompt for logging: Missing key {fmt_err}", "WARNING", node=NODE_NAME)
         except Exception as log_err:
@@ -230,7 +230,7 @@ def _critique_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(critique_data, dict) or not all(key in critique_data for key in required_keys):
              log_message = f"{worker_log_prefix}: Invalid critique structure received. Missing keys or not a dict."
              # Log the received data for debugging
-             log_to_state(temp_state_for_logging, f"Received critique data: {critique_data}", "DEBUG", node=NODE_NAME)
+             log_to_state(temp_state_for_logging, f"Received critique data: {critique_data}", "DEBUG", node=NODE_NAME, log_type="LOG_API_RESPONSES") # Potentially large data
              return {"index": index, "error": log_message, "critique_raw": response, "node_name": NODE_NAME, "logs": temp_state_for_logging["logs"]}
 
 
@@ -291,7 +291,7 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
 
         # --- Filter glossary based on original chunk ---
         filtered_glossary = filter_and_prioritize_terminology(original_chunk, full_glossary)
-        log_to_state(state_essentials, f"{worker_log_prefix}: Filtered glossary contains {len(filtered_glossary)} items.", "DEBUG", node=NODE_NAME)
+        log_to_state(state_essentials, f"{worker_log_prefix}: Filtered glossary contains {len(filtered_glossary)} items.", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
 
         # Build guidance string for the prompt
         final_term_list = []
@@ -322,7 +322,7 @@ def _finalize_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         try:
             # Format the prompt using the context that was actually sent
             formatted_finalize_prompt = prompts["prompts"]["final_translation"]["user"].format(**finalize_context)
-            # log_to_state(state_essentials, f"{worker_log_prefix}: Finalize prompt sent (using filtered glossary):\n---\n{formatted_finalize_prompt}\n---", "DEBUG", node=NODE_NAME)
+            log_to_state(state_essentials, f"{worker_log_prefix}: Finalize prompt sent (using filtered glossary):\n---\n{formatted_finalize_prompt}\n---", "DEBUG", node=NODE_NAME, log_type="LOG_LLM_PROMPTS")
         except KeyError as fmt_err:
              log_to_state(state_essentials, f"{worker_log_prefix}: Error formatting finalize prompt for logging: Missing key {fmt_err}", "WARNING", node=NODE_NAME)
         except Exception as log_err:

@@ -109,7 +109,7 @@ def critique_node(state: TranslationState) -> TranslationState:
                 worker_logs = result.get("logs", [])
                 for log_entry in worker_logs:
                     # Re-log under the main critique_node context if needed, or just store
-                    log_to_state(state, f"(Worker Log Chunk {index+1}): {log_entry.get('message', '')}", log_entry.get('level', 'DEBUG'), node=f"{NODE_NAME}/{result.get('node_name', 'critique_worker')}")
+                    log_to_state(state, f"(Worker Log Chunk {index+1}): {log_entry.get('message', '')}", log_entry.get('level', 'DEBUG'), node=f"{NODE_NAME}/{result.get('node_name', 'critique_worker')}", log_type="LOG_CHUNK_PROCESSING")
 
 
                 if "error" in result:
@@ -118,7 +118,7 @@ def critique_node(state: TranslationState) -> TranslationState:
                     state["critiques"][index] = {"error": error_message} # Store error dict instead of None
                 elif "critique" in result:
                     state["critiques"][index] = result["critique"] # Store the parsed critique
-                    log_to_state(state, f"Successfully critiqued chunk {index + 1}.", "DEBUG", node=NODE_NAME)
+                    log_to_state(state, f"Successfully critiqued chunk {index + 1}.", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
                 else:
                     log_to_state(state, f"Critique worker for chunk {index + 1} returned unexpected result: {result}", "WARNING", node=NODE_NAME)
                     state["critiques"][index] = {"error": "Unexpected critique worker result"} # Store error dict
@@ -229,7 +229,7 @@ def final_translation_node(state: TranslationState) -> TranslationState:
                     # Extract additional info from result for logging
                     prompt_chars = result.get("prompt_char_count", "N/A")
                     term_count = result.get("filtered_term_count", "N/A")
-                    log_to_state(state, f"Successfully refined chunk {index + 1} (Terms: {term_count}, Prompt Chars: {prompt_chars}).", "DEBUG", node=NODE_NAME)
+                    log_to_state(state, f"Successfully refined chunk {index + 1} (Terms: {term_count}, Prompt Chars: {prompt_chars}).", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
                 else:
                     log_to_state(state, f"Refinement worker for chunk {index + 1} returned unexpected result: {result}", "WARNING", node=NODE_NAME)
 
@@ -310,7 +310,7 @@ def assemble_document(state: TranslationState) -> TranslationState:
     log_to_state(state, f"Final document assembled successfully ({len(final_document)} characters).", "INFO", node=NODE_NAME)
 
     # Final updates
-    log_to_state(state, f"Metrics before setting end_time: {state.get('metrics')}", "DEBUG", node=NODE_NAME)
+    log_to_state(state, f"Metrics before setting end_time: {state.get('metrics')}", "DEBUG", node=NODE_NAME) # Keep this log unconditional for now
     if isinstance(state.get("metrics"), dict):
         state["metrics"]["end_time"] = time.time()
     else:

@@ -52,14 +52,37 @@ def terminology_extraction_worker(worker_input: Dict[str, Any]) -> Dict[str, Any
         prompt_template = ChatPromptTemplate.from_messages(messages)
         chain = prompt_template | llm | StrOutputParser()
 
-        response = chain.invoke({
-            "source_language": config.get("source_language", "english"),
-            "target_language": config.get("target_language", "arabic"),
+        # --- Prepare context and log the request prompt ---
+        invoke_context = {
+            # Expect these keys to be correctly set in init_translation
+            "source_language": config["source_language"],
+            "target_language": config["target_language"],
             "content_type": config.get("content_type", "general document"),
             "chunk_content": chunk_text
-        })
+        }
+        # Create a minimal state dict for logging within the worker context
+        temp_state_for_logging = {}
+        try:
+            # Format the prompt using the context that will be sent
+            formatted_request_prompt = prompt_text.format(**invoke_context)
+            log_to_state(temp_state_for_logging, f"Terminology extraction request prompt (Chunk {index}):\n---\n{formatted_request_prompt}\n---", "DEBUG", node=NODE_NAME, log_type="LOG_LLM_PROMPTS")
+        except KeyError as fmt_err:
+             log_to_state(temp_state_for_logging, f"Error formatting terminology request prompt for logging (Chunk {index}): Missing key {fmt_err}", "WARNING", node=NODE_NAME)
+        except Exception as log_err:
+             log_to_state(temp_state_for_logging, f"Error formatting terminology request prompt for logging (Chunk {index}): {log_err}", "WARNING", node=NODE_NAME)
+        # Note: Logs in temp_state_for_logging are currently discarded (see response logging note).
 
-        response_data = safe_json_parse(response, {}, NODE_NAME)
+        response = chain.invoke(invoke_context)
+
+        # --- Log the raw LLM response ---
+        # Create a minimal state dict for logging within the worker context
+        # Note: Full state context (like job_id) isn't directly available here.
+        temp_state_for_logging = {}
+        log_to_state(temp_state_for_logging, f"Terminology extraction raw response (Chunk {index}):\n---\n{response}\n---", "DEBUG", node=NODE_NAME, log_type="LOG_LLM_PROMPTS")
+        # The logs from temp_state_for_logging are currently discarded as the worker only returns terms/errors.
+        # If these logs need to be preserved, the worker's return signature and the calling function (terminology_unification) would need modification.
+
+        response_data = safe_json_parse(response, {}, NODE_NAME) # Use a fresh dict for safe_json_parse logging
 
         terms = []
         seen_terms = set()
@@ -138,9 +161,15 @@ def init_translation(state: TranslationState) -> TranslationState:
 
     # --- Handle Target Language Accent ---
     config = state_dict['config']
+    # Read initial keys (e.g., 'source_lang')
     source_lang = config.get('source_lang', 'unknown')
     target_lang = config.get('target_lang', 'unknown')
     target_accent = config.get('target_language_accent')
+
+    # Store the keys expected by later nodes ('source_language', 'target_language')
+    config['source_language'] = source_lang
+    config['target_language'] = target_lang
+
     # Default to "professional" if not provided or empty
     effective_accent = target_accent if target_accent else "professional"
     config['effective_accent'] = effective_accent # Store the effective accent back in config
@@ -208,8 +237,8 @@ def chunk_document(state: TranslationState) -> TranslationState:
         chunks_with_metadata, report = chunker.chunk(content)
         
         # Log chunking report
-        log_to_state(state, f"Chunking report: {report}, min_chunk_size:{min_size}, max_chunk_size:{max_size} ", "DEBUG", node=NODE_NAME)
-        
+        log_to_state(state, f"Chunking report: {report}, min_chunk_size:{min_size}, max_chunk_size:{max_size} ", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
+
         # Separate translatable and non-translatable chunks
         translatable_chunks = []
         non_translatable_chunks = []
@@ -304,7 +333,7 @@ def terminology_unification(state: TranslationState) -> TranslationState:
             chunks_with_metadata, _ = chunker.chunk(content)
             # Extract only the text content from translatable chunks
             initial_chunks = [chunk["chunkText"] for chunk in chunks_with_metadata if chunk["toTranslate"]]
-            log_to_state(state, f"Initial terminology chunks before merging: {len(initial_chunks)}", "DEBUG", node=NODE_NAME)
+            log_to_state(state, f"Initial terminology chunks before merging: {len(initial_chunks)}", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
 
             # Merge small chunks similar to chunk_document
             merged_chunks = []
@@ -380,7 +409,7 @@ def terminology_unification(state: TranslationState) -> TranslationState:
                     if "error" in result:
                         log_to_state(state, f"Worker error (Chunk {idx + 1}/{len(worker_inputs)}): {result['error']}", "ERROR", node=NODE_NAME)
                     else:
-                        log_to_state(state, f"Successfully extracted terminology for chunk {idx + 1}/{len(worker_inputs)}.", "DEBUG", node=NODE_NAME)
+                        log_to_state(state, f"Successfully extracted terminology for chunk {idx + 1}/{len(worker_inputs)}.", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
 
                 except Exception as e:
                     log_to_state(state, f"Exception in terminology worker for chunk {idx + 1}: {type(e).__name__}: {e}", "ERROR", node=NODE_NAME)
@@ -402,8 +431,8 @@ def terminology_unification(state: TranslationState) -> TranslationState:
             log_to_state(state, f"Error during terminology aggregation: {type(agg_error).__name__}: {agg_error}", "ERROR", node=NODE_NAME)
             # Depending on desired behavior, might want to clear all_terms or proceed with partial data
             all_terms = [] # Clear terms if aggregation fails
-        log_to_state(state, f"Preparing to assign terminology list. Type: {type(all_terms)}, Length: {len(all_terms)}", "DEBUG", node=NODE_NAME)
-        # log_to_state(state, f"Full extracted terminology list: {all_terms}", "DEBUG", node=NODE_NAME)
+        log_to_state(state, f"Preparing to assign terminology list. Type: {type(all_terms)}, Length: {len(all_terms)}", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
+        # log_to_state(state, f"Full extracted terminology list: {all_terms}", "DEBUG", node=NODE_NAME, log_type="LOG_API_RESPONSES") # Potentially large data
         try:
             update_dict["contextualized_glossary"] = all_terms # Prepare the update using the CORRECT key
             log_to_state(state, f"Unified terminology extraction complete. Total unique terms: {len(all_terms)}", "INFO", node=NODE_NAME)

@@ -4,10 +4,29 @@ from typing import Dict, Optional, Any
 # Ensure imports use the correct relative path if run as part of a package
 # If running scripts directly, ensure PYTHONPATH is set or use absolute imports if needed.
 from .state import LogEntry, LogLevel, TranslationState
+# --- Logging Configuration ---
+# Centralized flags to control verbose logging across nodes.
+# Modify these values to enable/disable specific log categories.
+LOGGING_CONFIG = {
+    "LOG_LLM_PROMPTS": True,  # Log full LLM prompts (can be verbose)
+    "LOG_CHUNK_PROCESSING": False, # Log details during chunk processing steps
+    "LOG_API_RESPONSES": False, # Log full API responses (can be large)
+    # Add more flags as needed
+}
+# --- End Logging Configuration ---
 
 # --- Logging Utility ---
-def log_to_state(state: TranslationState, message: str, level: LogLevel = "INFO", node: Optional[str] = None):
-    """Appends a structured log entry to the graph state."""
+def log_to_state(state: TranslationState, message: str, level: LogLevel = "INFO", node: Optional[str] = None, log_type: Optional[str] = None):
+    """
+    Appends a structured log entry to the graph state.
+    Optionally filters logs based on type defined in LOGGING_CONFIG.
+    """
+    # --- Conditional Logging Check ---
+    if log_type and log_type in LOGGING_CONFIG:
+        if not LOGGING_CONFIG[log_type]:
+            return # Skip logging if this type is disabled
+
+    # --- Proceed with Logging ---
     if not isinstance(state, dict): state = {} # Ensure state is a dict
     if "logs" not in state or not isinstance(state["logs"], list):
         state["logs"] = []

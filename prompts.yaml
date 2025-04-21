@@ -108,10 +108,8 @@ prompts:
       For each term, provide a proposed translation into {target_language}.
       Return ONLY a valid JSON list of objects. Each object MUST have these keys:
       - "sourceTerm": The term in the original language (string).
-      - "context": A short phrase showing usage (string).
       - "proposedTranslations": An object with a single key "default" and the value being your suggested translation (string). e.g., {{"default": "Translation"}}
-      - "variants": A list of variant forms of the term (list of strings), can be empty []. e.g., ["variant1", "variant2"]
-      Example Object: {{"sourceTerm": "API Key", "context": "generate an API Key", "proposedTranslations": {{"default": "Clave de API"}}, "variants": ["API Keys", "API key"]}}
+      Example Object: {{"sourceTerm": "API Key", "proposedTranslations": {{"default": "Clave de API"}}}}
       Do NOT include explanations or surrounding text outside the JSON list.
 
       TEXT TO ANALYZE:
