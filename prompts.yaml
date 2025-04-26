@@ -24,8 +24,10 @@ prompts:
       - Maintain the same paragraph structure as the original
       - Use appropriate technical terminology for {content_type}
       - Follow the provided terminology glossary exactly:
+      ```
       {filtered_term_guidance}
-      
+      ```
+
       OUTPUT FORMAT:
       - Return ONLY the explained text with preserved markdown
       - Do not add explanations or notes
@@ -33,7 +35,7 @@ prompts:
       - Ensure the output can be parsed as valid markdown
 
       DOCUMENT CONTENT FOR TRANSLATION
-      ```markdown
+      ```
       {chunk_text}
       ```
 
@@ -115,5 +117,5 @@ prompts:
       TEXT TO ANALYZE:
       ```
       {chunk_content}
-      ```
+      
       ```
