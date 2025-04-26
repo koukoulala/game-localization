@@ -11,6 +11,7 @@ document.addEventListener('alpine:init', () => {
                 provider: localStorage.getItem('provider') || '',
                 model: localStorage.getItem('model') || '',
                 target_language_accent: localStorage.getItem('target_accent') || 'professional',
+                translation_mode: localStorage.getItem('translation_mode') || 'deep_mode',
             },
         },
         originalFilename: '', // Store the original filename
@@ -54,6 +55,7 @@ document.addEventListener('alpine:init', () => {
             source_lang: '',
             target_lang: '',
             target_language_accent: '',
+            translation_mode: 'deep_mode',
             set_as_default: true
         },
         modelFilter: '',
@@ -153,6 +155,7 @@ document.addEventListener('alpine:init', () => {
             this.$watch('inputData.config.provider', (val) => { localStorage.setItem('provider', val); this.inputData.config.model = ''; localStorage.removeItem('model'); }); // Reset model on provider change
             this.$watch('inputData.config.model', (val) => localStorage.setItem('model', val));
             this.$watch('inputData.config.target_language_accent', (val) => localStorage.setItem('target_accent', val));
+            this.$watch('inputData.config.translation_mode', (val) => localStorage.setItem('translation_mode', val));
 
             // Set initial model list if provider/models are loaded from localStorage
             this.updateModels();
@@ -186,6 +189,9 @@ document.addEventListener('alpine:init', () => {
                         this.inputData.config.source_lang = config.source_lang;
                         this.inputData.config.target_lang = config.target_lang;
                         this.inputData.config.target_language_accent = config.target_language_accent;
+                        if (config.translation_mode) {
+                            this.inputData.config.translation_mode = config.translation_mode;
+                        }
                         this.updateModels();
                     }
                 }
@@ -728,6 +734,7 @@ connectToJobStream(jobId) {
                     source_lang: '',
                     target_lang: '',
                     target_language_accent: '',
+                    translation_mode: 'deep_mode',
                     set_as_default: true
                 };
                 
@@ -873,6 +880,7 @@ connectToJobStream(jobId) {
                 source_lang: config.source_lang,
                 target_lang: config.target_lang,
                 target_language_accent: config.target_language_accent || '',
+                translation_mode: config.translation_mode || 'deep_mode',
                 set_as_default: config.is_default,
                 id: config.id // Store the ID for updating
             };
@@ -896,6 +904,7 @@ connectToJobStream(jobId) {
                 source_lang: config.source_lang,
                 target_lang: config.target_lang,
                 target_language_accent: config.target_language_accent || '',
+                translation_mode: config.translation_mode || 'deep_mode',
                 set_as_default: false // Don't set as default by default
             };
             

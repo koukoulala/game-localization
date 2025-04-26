@@ -837,6 +837,17 @@
                                         </template>
                                     </select>
                                 </div>
+                                <!-- Translation Mode Dropdown -->
+                                <div>
+                                    <label for="llm_translation_mode" class="block text-sm font-medium">
+                                        <i class="fas fa-tachometer-alt mr-1"></i> Default Translation Mode:
+                                    </label>
+                                    <select id="llm_translation_mode" x-model="newLLMConfig.translation_mode" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm">
+                                        <option value="deep_mode">Deep Translation</option>
+                                        <option value="quick_mode">Quick Translation</option>
+                                    </select>
+                                    <p class="mt-1 text-xs text-[var(--text-muted)]">Set the default translation mode for this configuration.</p>
+                                </div>
                                 <!-- Toggle Switch for Set as Default -->
                                 <div class="flex items-center justify-between">
                                     <label for="llm_default_toggle" class="text-sm font-medium">Set as default configuration</label>
@@ -875,6 +886,7 @@
                                         <tr>
                                             <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Provider</th>
                                             <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Model</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Translation Mode</th>
                                             <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Default</th>
                                             <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
                                         </tr>
@@ -884,6 +896,17 @@
                                             <tr class="hover:bg-[var(--bg-tertiary)] transition-colors">
                                                 <td class="px-4 py-3 text-sm" x-text="config.provider"></td>
                                                 <td class="px-4 py-3 text-sm" x-text="config.model"></td>
+                                                <td class="px-4 py-3 text-sm">
+                                                    <span x-show="config.translation_mode === 'deep_mode'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                        <i class="fas fa-brain mr-1"></i> Deep
+                                                    </span>
+                                                    <span x-show="config.translation_mode === 'quick_mode'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                        <i class="fas fa-bolt mr-1"></i> Quick
+                                                    </span>
+                                                    <span x-show="!config.translation_mode" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                                        <i class="fas fa-brain mr-1"></i> Deep (Default)
+                                                    </span>
+                                                </td>
                                                 <td class="px-4 py-3 text-sm">
                                                     <span x-show="config.is_default" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                                                         <i class="fas fa-check mr-1"></i> Default
@@ -1104,6 +1127,17 @@
                         <p class="mb-2"><span class="font-medium"><i class="fas fa-microphone-alt mr-1"></i> Accent/Style:</span> <span x-text="selectedJob?.target_language_accent || '-'"></span></p>
                         <p class="mb-2"><span class="font-medium"><i class="fas fa-server mr-1"></i> Provider:</span> <span x-text="selectedJob?.provider || '-'"></span></p>
                         <p class="mb-2"><span class="font-medium"><i class="fas fa-brain mr-1"></i> Model:</span> <span x-text="selectedJob?.model"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-tachometer-alt mr-1"></i> Translation Mode:</span>
+                            <span x-show="selectedJob?.config?.translation_mode === 'deep_mode'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                <i class="fas fa-brain mr-1"></i> Deep
+                            </span>
+                            <span x-show="selectedJob?.config?.translation_mode === 'quick_mode'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                <i class="fas fa-bolt mr-1"></i> Quick
+                            </span>
+                            <span x-show="!selectedJob?.config?.translation_mode" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                <i class="fas fa-brain mr-1"></i> Deep (Default)
+                            </span>
+                        </p>
                     </div>
                 </div>
                 <div x-show="selectedJob?.status === 'processing'" class="mb-4">

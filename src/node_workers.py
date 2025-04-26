@@ -55,9 +55,13 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         # --- Terminology Filtering ---
         try:
             terminology_json = json.dumps(terminology, indent=2)
-            log_to_state(state_essentials, f"{worker_log_prefix}: Full 'contextualized_glossary' received ({len(terminology)} items):\n{terminology_json}", "DEBUG", node=NODE_NAME, log_type="LOG_API_RESPONSES") # Potentially large data
+            # Optional: print list of contextualized_glossary for every parallel worker (don't enable this log unless you "REALLY" need it, it could be very long json)
+            # log_to_state(state_essentials, f"{worker_log_prefix}: Full 'contextualized_glossary' received ({len(terminology)} items):\n{terminology_json}", "DEBUG", node=NODE_NAME, log_type="LOG_API_RESPONSES") # Potentially large data
         except Exception as json_err:
-            log_to_state(state_essentials, f"{worker_log_prefix}: Could not serialize full terminology for logging: {json_err}", "WARNING", node=NODE_NAME)
+            # Only show warning for "deep" translation mode, it's normal for "quick" mode
+            translation_mode = config.get('translation_mode', 'deep')
+            if translation_mode == "deep":
+                log_to_state(state_essentials, f"{worker_log_prefix}: Could not serialize full terminology for logging: {json_err}", "WARNING", node=NODE_NAME)
 
         # Note: Using the original (non-escaped) chunk_text for filtering
         filtered_terminology = filter_and_prioritize_terminology(chunk_text, terminology)
@@ -109,6 +113,9 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         translation_response = translation_chain.invoke({})
         translated_text = translation_response
         translation_metadata = getattr(translation_response, 'response_metadata', {})
+
+        # Log the translated text (configurable with LOG_API_RESPONSES)
+        log_to_state(state_essentials, f"{worker_log_prefix}: Received translation response:\n---\n{translated_text}\n---", "DEBUG", node=NODE_NAME, log_type="LOG_API_RESPONSES")
 
         if not isinstance(translated_text, str) or not translated_text.strip():
             warning_msg = f"{worker_log_prefix}: Received empty or non-string translation."

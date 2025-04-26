@@ -275,9 +275,34 @@ async def create_job(request: Request):
     # 5. Update data with the final glossary to use (can be None)
     data['contextualized_glossary'] = glossary_to_use
 
-    # 6. Enqueue job
+    # 6. Handle translation_mode
+    # Check if config exists in data
+    if 'config' not in data:
+        data['config'] = {}
+    
+    # Check if translation_mode is explicitly provided in the request
+    if 'translation_mode' not in data['config']:
+        # If not provided, try to get from default LLM config
+        from .database import get_default_llm_config
+        default_config = await get_default_llm_config()
+        if default_config and 'translation_mode' in default_config:
+            data['config']['translation_mode'] = default_config['translation_mode']
+            logger.info(f"Using translation_mode '{default_config['translation_mode']}' from default LLM config.")
+        else:
+            # If no default config or no translation_mode in default config, use deep_mode
+            data['config']['translation_mode'] = 'deep_mode'
+            logger.info("No translation_mode specified, defaulting to 'deep_mode'.")
+    else:
+        logger.info(f"Using explicitly provided translation_mode: {data['config']['translation_mode']}")
+
+    # 7. Enqueue job
     job_id = await job_queue.enqueue_job(data)
-    return {"job_id": job_id, "status": "pending", "glossary_used": glossary_source}
+    return {
+        "job_id": job_id,
+        "status": "pending",
+        "glossary_used": glossary_source,
+        "translation_mode": data['config']['translation_mode']
+    }
 
 @app.get("/jobs", tags=["Jobs"])
 async def list_jobs(limit: int = 100, offset: int = 0):

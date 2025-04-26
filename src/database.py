@@ -29,6 +29,7 @@ async def init_db():
     need_env_tables = False
     need_llm_tables = False
     need_glossary_migration = False # Flag for glossary column
+    need_translation_mode_migration = False # Flag for translation_mode column
 
     try:
         async with aiosqlite.connect(DB_PATH) as db:
@@ -54,8 +55,11 @@ async def init_db():
             
             # Check if llm_config table exists
             cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='llm_config'")
-            if not await cursor.fetchone():
+            llm_config_exists = await cursor.fetchone()
+            if not llm_config_exists:
                 need_llm_tables = True
+            elif llm_config_exists and not await _column_exists(db, 'llm_config', 'translation_mode'):
+                need_translation_mode_migration = True
                 
     except Exception as e:
         print(f"Error checking for migrations: {e}")
@@ -108,6 +112,7 @@ async def init_db():
             source_lang TEXT,
             target_lang TEXT,
             target_language_accent TEXT,
+            translation_mode TEXT DEFAULT 'deep_mode',
             is_default BOOLEAN DEFAULT 0,
             created_at TIMESTAMP,
             updated_at TIMESTAMP
@@ -207,7 +212,7 @@ async def init_db():
         await db.commit()
 
     # Run migrations if needed
-    if need_migration or need_filename_migration or need_glossary_migration or need_env_tables or need_llm_tables: # Added glossary flag
+    if need_migration or need_filename_migration or need_glossary_migration or need_env_tables or need_llm_tables or need_translation_mode_migration: # Added translation_mode flag
         print("Running database migrations...")
         try:
             async with aiosqlite.connect(DB_PATH) as db:
@@ -260,11 +265,17 @@ async def init_db():
                         target_lang TEXT,
                         target_language_accent TEXT,
                         api_url TEXT,
+                        translation_mode TEXT DEFAULT 'deep_mode',
                         is_default BOOLEAN DEFAULT 0,
                         created_at TIMESTAMP,
                         updated_at TIMESTAMP
                     )
                     """)
+                
+                # Add translation_mode column to llm_config if needed
+                if need_translation_mode_migration:
+                    print("Adding translation_mode column to llm_config table...")
+                    await db.execute("ALTER TABLE llm_config ADD COLUMN translation_mode TEXT DEFAULT 'deep_mode'")
                 
                 await db.commit()
                 print("Migration completed successfully.")
@@ -853,6 +864,7 @@ async def save_llm_config(config: Dict[str, Any], set_as_default: bool = False) 
     source_lang = config.get("source_lang", "")
     target_lang = config.get("target_lang", "")
     target_language_accent = config.get("target_language_accent", "")
+    translation_mode = config.get("translation_mode", "deep_mode")
     
     async with aiosqlite.connect(DB_PATH) as db:
         # If setting as default, clear existing default
@@ -863,11 +875,11 @@ async def save_llm_config(config: Dict[str, Any], set_as_default: bool = False) 
         cursor = await db.execute("""
         INSERT INTO llm_config (
             provider, model, source_lang, target_lang, target_language_accent,
-            is_default, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            translation_mode, is_default, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             provider, model, source_lang, target_lang, target_language_accent,
-            1 if set_as_default else 0, now, now
+            translation_mode, 1 if set_as_default else 0, now, now
         ))
         
         config_id = cursor.lastrowid
@@ -885,6 +897,7 @@ async def update_llm_config(config_id: int, config: Dict[str, Any], set_as_defau
     source_lang = config.get("source_lang", "")
     target_lang = config.get("target_lang", "")
     target_language_accent = config.get("target_language_accent", "")
+    translation_mode = config.get("translation_mode", "deep_mode")
     
     async with aiosqlite.connect(DB_PATH) as db:
         # If setting as default, clear existing default
@@ -895,11 +908,11 @@ async def update_llm_config(config_id: int, config: Dict[str, Any], set_as_defau
         await db.execute("""
         UPDATE llm_config
         SET provider = ?, model = ?, source_lang = ?, target_lang = ?,
-            target_language_accent = ?, is_default = ?, updated_at = ?
+            target_language_accent = ?, translation_mode = ?, is_default = ?, updated_at = ?
         WHERE id = ?
         """, (
             provider, model, source_lang, target_lang, target_language_accent,
-            1 if set_as_default else 0, now, config_id
+            translation_mode, 1 if set_as_default else 0, now, config_id
         ))
         
         await db.commit()

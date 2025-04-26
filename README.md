@@ -10,14 +10,22 @@ Ever felt daunted by translating a massive book (like 500 pages and over 150,000
 
 ## ✨ How Turjuman Works
 
-Turjuman uses a smart pipeline powered by LangGraph 🦜🔗:
+Turjuman uses a smart pipeline powered by LangGraph 🦜🔗 with two translation modes:
+
+### 🔄 Translation Modes
+
+- **🧠 Deep Translation Mode (Default)**: The comprehensive workflow with terminology unification, critique, and revision steps for higher quality and consistency. Best for professional or publication-ready translations.
+
+- **⚡ Quick Translation Mode**: A streamlined workflow that bypasses terminology unification, critique, and revision steps for faster processing and lower token usage. Ideal for drafts or when speed is more important than perfect quality.
+
+### 📋 Translation Pipeline
 
 1. **🚀 init_translation**: Start the translation job
-2. **🧐 terminology_unification**: Find and unify key terms, User can provide manual list of prefered glossary or dicitenary (word paires)
+2. **🧐 terminology_unification**: Find and unify key terms, User can provide manual list of prefered glossary or dicitenary "word paires" this feature available in (Deep Mode only)
 3. **✂️ chunk_document**: Split the book into chunks
 4. **🌐 initial_translation**: Translate chunks in parallel
-5. **🤔 critique_stage**: Review translations, catch errors
-6. **✨ final_translation**: Refine translations
+5. **🤔 critique_stage**: Review translations, catch errors (Deep Mode only)
+6. **✨ final_translation**: Refine translations (Deep Mode only)
 7. **📜 assemble_document**: Stitch everything back together
 
 ![Theme](docs/ui_home.png)
@@ -26,17 +34,21 @@ Turjuman uses a smart pipeline powered by LangGraph 🦜🔗:
 
 ```mermaid
 flowchart TD
-    A([🚀 init_translation<br><sub>Initialize translation state and configs</sub>]) --> AA{User Glossary?}
+    A([🚀 init_translation<br><sub>Initialize translation state and configs</sub>]) --> Mode{Translation Mode?}
     
-    %% Glossary path decision
+    %% Mode decision
+    Mode -->|Quick Mode| C([✂️ chunk_document<br><sub>Split the book into manageable chunks</sub>])
+    Mode -->|Deep Mode| AA{User Glossary?}
+    
+    %% Glossary path decision (Deep Mode only)
     AA -->|Yes| AB([📘 User Glossary<br><sub>Use provided glossary terms</sub>])
     AA -->|No| AC([🔍 Auto Extract<br><sub>Extract key terms from document</sub>])
     
-    %% Both paths lead to terminology unification
+    %% Both glossary paths lead to terminology unification
     AB --> B([🧐 terminology_unification<br><sub>Unify glossary, prepare context</sub>])
     AC --> B
     
-    B --> C([✂️ chunk_document<br><sub>Split the book into manageable chunks</sub>])
+    B --> C
 
     %% Chunking produces multiple chunks
     C --> D1([📦 Chunk 1])
@@ -48,19 +60,27 @@ flowchart TD
     D2 --> E2([🌐 initial_translation<br><sub>Translate chunk 2 in parallel</sub>])
     D3 --> E3([🌐 initial_translation<br><sub>Translate chunk N in parallel</sub>])
 
-    %% Merge all translations
-    E1 --> F([🤔 critique_stage<br><sub>Review translations, check quality and consistency</sub>])
-    E2 --> F
-    E3 --> F
+    %% Mode-based path after translation
+    E1 --> ModeAfter{Translation Mode?}
+    E2 --> ModeAfter
+    E3 --> ModeAfter
+    
+    %% Quick Mode path
+    ModeAfter -->|Quick Mode| I([📜 assemble_document<br><sub>Merge all chunks into final output</sub>])
+    
+    %% Deep Mode path
+    ModeAfter -->|Deep Mode| F([🤔 critique_stage<br><sub>Review translations, check quality and consistency</sub>])
 
     %% Decision after critique
     F --> |No critical errors| G([✨ final_translation<br><sub>Refine translations based on feedback</sub>])
     F --> |Critical error| H([🛑 End<br><sub>Stop translation due to errors</sub>])
 
-    G --> I([📜 assemble_document<br><sub>Merge all refined chunks into final output</sub>])
+    G --> I
     I --> J([🏁 Done<br><sub>Translation complete!</sub>])
 
     H --> J
+    
+
 ```
 
 ---
@@ -122,22 +142,19 @@ The application will now be accessible at [http://localhost:8051](http://localho
 ## 🚀 Using Turjuman via integrated web UI 
 
 visit [http://localhost:8051](http://localhost:8051)
-- Go to "Configuration" tab and create a new default LLM configurations (LLM provider / model / ...etc)
-- save the configuration profile (optional you can create multiple profile and select one of them as default profile)
-- Select "New Translation" then upload file to translate or paste text
-- modify the source and target language 
-- modify the "Accent and style" if needed (this option can make translation more funny, spicy or professional by default)
-- start translation, after few seconds both logs, text chunks will update dynamically
-- after translation progress reach 100% you can view or download the translated file or text
-- you can change the theme from top drop menue (7 themes available) 
-- you can switch the view between chunk or full document to review the translated content chunk by chunk 
+- Go to "Configuration" tab and create a new default LLM configurations (LLM provider / model / translation mode, etc.)
+- Save the configuration profile (optional: you can create multiple profiles and select one as the default)
+- Select "New Translation" then upload a file to translate or paste text
+- Modify the source and target language
+- Modify the "Accent and style" if needed (this option can make translation more funny, spicy or professional by default)
+- Start translation. After a few seconds, both logs and text chunks will update dynamically
+- After translation progress reaches 100%, you can view or download the translated file or text
+- You can change the theme from the top drop menu (7 themes available)
+- You can switch the view between chunk or full document to review the translated content chunk by chunk
 ![Integarted Web UI](docs/ui_1.png)
 ![Completed Task](docs/ui_view_translation.png)
-![Job History](docs/ui_job_history.png)
 ![Theme](docs/ui_themes.png)
 ![Chunk view](docs/ui_chunks.png)
-![Glossary Management](docs/ui_glossary_managment.png)
-![Configuration](docs/ui_config.png)
 
 ### 🔄 Job Queue & History
 Turjuman includes a robust job management system:
@@ -146,6 +163,7 @@ Turjuman includes a robust job management system:
 - Download completed translations directly from the history view
 - Access job-specific glossaries generated during translation
 - View detailed logs and progress information for each job
+![Job History](docs/ui_job_history.png)
 
 ### 📚 Glossary Management
 Create and manage custom glossaries to ensure consistent terminology:
@@ -155,15 +173,18 @@ Create and manage custom glossaries to ensure consistent terminology:
 - Set default glossaries for automatic use in translations
 - Download, edit, and delete glossaries as needed
 - Option for automatic terminology extraction during translation
+![Glossary Management](docs/ui_glossary_managment.png)
 
 ### ⚙️ Configuration Management
 Manage LLM settings and environment variables directly from the UI:
 - Configure multiple LLM providers and models
+- Select translation mode (Deep or Quick) for each configuration
 - Create and save different configuration profiles
 - Set default configurations for quick access
 - Securely manage environment variables (API keys, etc.)
 - Filter available models by keyword
 - Duplicate existing configurations for easy modification
+![Configuration](docs/ui_config.png)
 
 
 ---
@@ -220,6 +241,8 @@ The script submits the job via the API. Since the API call is synchronous, the s
 - Further enhancements to glossary and terminology management
 - Interactive editing and feedback loop
 - Advanced customization options for translation styles
+- Additional translation modes with different quality/speed tradeoffs
+- Batch processing capabilities for multiple documents
 
 ---
 

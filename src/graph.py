@@ -53,18 +53,28 @@ workflow.add_node("assemble_document", assemble_document)
 # Define Edges and Entry Point
 workflow.set_entry_point("init_translation")
 
-# Define conditional edge function to check for user-provided glossary
-def decide_after_init(state: TranslationState) -> str:
-    """Determines next step after initialization."""
+# Define conditional edge function that handles both translation mode and glossary checks
+def decide_next_step_after_init(state: TranslationState) -> str:
+    """Determines next step after initialization based on translation mode and glossary."""
+    # First check translation mode
+    translation_mode = state.get("config", {}).get("translation_mode", "deep_mode")
+    
+    if translation_mode == "quick_mode":
+        # Quick mode: Skip terminology extraction and go directly to chunking
+        return "chunk_document"
+    
+    # Deep mode: Check if user provided a glossary
     if "contextualized_glossary" in state and state["contextualized_glossary"]:
         # Skip terminology extraction if user provided a glossary
         return "chunk_document"
+    
+    # Deep mode with no glossary: Do terminology extraction
     return "terminology_unification"
 
 # Add conditional edges after init_translation node
 workflow.add_conditional_edges(
     "init_translation",
-    decide_after_init,
+    decide_next_step_after_init,
     {
         "terminology_unification": "terminology_unification",
         "chunk_document": "chunk_document"
@@ -73,7 +83,26 @@ workflow.add_conditional_edges(
 
 workflow.add_edge("terminology_unification", "chunk_document")
 workflow.add_edge("chunk_document", "initial_translation")
-workflow.add_edge("initial_translation", "critique_stage") # Updated edge target
+
+# Define conditional edge function to decide path after initial translation
+def decide_after_initial_translation(state: TranslationState) -> str:
+    """Determines next step after initial translation based on translation mode."""
+    translation_mode = state.get("config", {}).get("translation_mode", "deep_mode")
+    if translation_mode == "quick_mode":
+        # Quick mode: Skip critique and final translation, go directly to assembly
+        return "assemble_document"
+    # Deep mode: Continue with critique stage
+    return "critique_stage"
+
+# Add conditional edges after initial_translation
+workflow.add_conditional_edges(
+    "initial_translation",
+    decide_after_initial_translation,
+    {
+        "critique_stage": "critique_stage",
+        "assemble_document": "assemble_document"
+    }
+)
 
 # Conditional Edge Function - Decides where to go after critique_stage
 def decide_after_critique(state: TranslationState) -> str:
