@@ -43,7 +43,7 @@ document.addEventListener('alpine:init', () => {
         // New properties for job history
         jobHistory: [],
         selectedJob: null,
-        viewMode: 'form', // 'form', 'history', 'job-details', 'llm-config', 'env-config'
+        viewMode: 'home', // 'home', 'form', 'history', 'job-details', 'llm-config', 'env-config', 'glossary'
         
         // LLM Configuration
         llmConfigs: [],
