@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Turjuman - LLM Powered Books & Long Text Translator</title>
+    <!-- Favicon using Font Awesome icon as fallback -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>">
     <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -418,7 +420,7 @@
                             <div class="flex justify-between items-center mb-3">
                                  <h2 class="text-xl font-semibold"><i class="fas fa-check-circle text-green-500 mr-2"></i> Results</h2>
                                  <div class="flex space-x-2">
-                                     <button @click="downloadFile(cleanedTranslatedContent, 'translated.md', 'text/markdown')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all">
+                                     <button @click="downloadTranslation(jobId)" class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all">
                                          <i class="fas fa-download mr-1"></i> Download .MD
                                      </button>
                                      <button @click="downloadFile(JSON.stringify(status, null, 2), 'response.json', 'application/json')" class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-[var(--text-primary)] bg-[var(--bg-tertiary)] hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all">

@@ -315,11 +315,18 @@ async def download_job(job_id: str):
     else:
         filename = f"translation_{source_lang}_to_{target_lang}_{job_id}.txt"
     
+    # Replace spaces with underscores in filename
+    filename = filename.replace(" ", "_")
+    
     # Return as downloadable file
+    # Properly encode filename for HTTP headers to handle non-ASCII characters
+    import urllib.parse
+    encoded_filename = urllib.parse.quote(filename)
+    
     return Response(
         content=final_document,
         media_type="text/plain",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
 @app.get("/jobs/{job_id}/glossary/download", tags=["Jobs"])
@@ -358,12 +365,19 @@ async def download_job_glossary(job_id: str):
     else:
         base_filename = f"job_{job_id}"
     filename = f"{base_filename}_glossary.json"
+    
+    # Replace spaces with underscores in filename
+    filename = filename.replace(" ", "_")
 
     # Return as downloadable JSON file
+    # Properly encode filename for HTTP headers to handle non-ASCII characters
+    import urllib.parse
+    encoded_filename = urllib.parse.quote(filename)
+    
     return Response(
         content=json.dumps(formatted_glossary, indent=2, ensure_ascii=False),
         media_type="application/json",
-        headers={"Content-Disposition": f"attachment; filename=\"{filename}\""}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
 
