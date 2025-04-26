@@ -14,3 +14,4 @@ aiosqlite
 uv
 streamlit
 langchain-mistralai
+pytest
