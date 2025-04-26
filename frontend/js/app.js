@@ -666,30 +666,9 @@ connectToJobStream(jobId) {
                     this.defaultLLMConfig = await response.json();
                     console.log('Default LLM configuration fetched:', this.defaultLLMConfig);
                     
-                    // Directly apply the default configuration
-                    if (this.defaultLLMConfig) {
-                        // Always use the API URL from the default config
-                        if (this.defaultLLMConfig.api_url) {
-                            this.apiUrl = this.defaultLLMConfig.api_url;
-                        }
-                        
-                        // Apply provider and model from default config if not already set
-                        if (!this.inputData.config.provider || this.inputData.config.provider.trim() === '') {
-                            this.inputData.config.provider = this.defaultLLMConfig.provider;
-                        }
-                        
-                        if (!this.inputData.config.model || this.inputData.config.model.trim() === '') {
-                            this.inputData.config.model = this.defaultLLMConfig.model;
-                        }
-                        
-                        // Apply language settings from default config
-                        this.inputData.config.source_lang = this.defaultLLMConfig.source_lang || this.inputData.config.source_lang;
-                        this.inputData.config.target_lang = this.defaultLLMConfig.target_lang || this.inputData.config.target_lang;
-                        this.inputData.config.target_language_accent = this.defaultLLMConfig.target_language_accent || this.inputData.config.target_language_accent;
-                        
-                        // Update available models based on the provider
-                        this.updateModels();
-                    }
+                    // Default config is fetched and stored in this.defaultLLMConfig
+                    // We no longer automatically apply it to the main form here.
+                    // The application logic will use this.defaultLLMConfig when needed (e.g., in startTranslation).
                 } else {
                     this.defaultLLMConfig = null;
                 }
