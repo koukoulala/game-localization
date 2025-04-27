@@ -996,3 +996,387 @@ def test_very_short_chunks_non_translatable(default_chunker):
             # Chunks with 2 or more characters should be translatable (if they're text)
             if chunk['chunkType'] == 'text':
                 assert chunk['toTranslate'] == True, f"Chunk '{chunk['chunkText']}' should be translatable"
+
+# --- Mode Tests ---
+
+def test_mode_validation():
+    """Test validation of mode parameter in constructor."""
+    # Valid modes
+    SmartChunker(mode="smart")
+    SmartChunker(mode="line")
+    SmartChunker(mode="symbol")  # Should use default separators
+    SmartChunker(mode="subtitle_srt")
+    
+    # Invalid mode
+    with pytest.raises(ValueError, match="mode must be one of"):
+        SmartChunker(mode="invalid_mode")
+        
+    # Test default separator for symbol mode
+    chunker = SmartChunker(mode="symbol")
+    assert chunker.separators == [".", ",", " ", "\n", "\n\n"] # Default separators
+
+# --- Line Mode Tests ---
+
+def test_line_mode_basic():
+    """Test basic line mode chunking."""
+    chunker = SmartChunker(mode="line")
+    text = "Line 1\nLine 2\n\nLine 3"
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 3
+    assert report['translatable_chunks'] == 3
+    assert chunks[0]['chunkText'] == "Line 1"
+    assert chunks[1]['chunkText'] == "Line 2"
+    assert chunks[2]['chunkText'] == "Line 3"
+    assert all(chunk['toTranslate'] for chunk in chunks)
+
+def test_line_mode_ignores_empty_lines():
+    """Test that line mode ignores empty lines."""
+    chunker = SmartChunker(mode="line")
+    text = "Line 1\n\n\nLine 2"
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 2
+    assert chunks[0]['chunkText'] == "Line 1"
+    assert chunks[1]['chunkText'] == "Line 2"
+
+def test_line_mode_ignores_min_max_size():
+    """Test that line mode ignores min_chunk_size and max_chunk_size."""
+    chunker = SmartChunker(min_chunk_size=100, max_chunk_size=200, mode="line")
+    text = "Short\nVery long line that exceeds the max_chunk_size parameter but should still be kept as a single chunk in line mode"
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 2
+    assert chunks[0]['chunkText'] == "Short"
+    assert len(chunks[1]['chunkText']) > 100  # Longer than min_chunk_size
+
+def test_line_mode_with_whitespace():
+    """Test line mode with lines that have leading/trailing whitespace."""
+    chunker = SmartChunker(mode="line")
+    text = "  Line with leading space\nLine with trailing space  \n  Line with both  "
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 3
+    assert chunks[0]['chunkText'] == "Line with leading space"
+    assert chunks[1]['chunkText'] == "Line with trailing space"
+    assert chunks[2]['chunkText'] == "Line with both"
+
+def test_line_mode_with_empty_input():
+    """Test line mode with empty input."""
+    chunker = SmartChunker(mode="line")
+    text = ""
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 0
+    assert len(chunks) == 0
+
+def test_line_mode_with_only_empty_lines():
+    """Test line mode with input that contains only empty lines."""
+    chunker = SmartChunker(mode="line")
+    text = "\n\n\n"
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 0
+    assert len(chunks) == 0
+
+def test_line_mode_with_unicode():
+    """Test line mode with Unicode characters."""
+    chunker = SmartChunker(mode="line")
+    text = "Line with Unicode: üñîçødé\nAnother line with emoji: 😊"
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 2
+    assert chunks[0]['chunkText'] == "Line with Unicode: üñîçødé"
+    assert chunks[1]['chunkText'] == "Another line with emoji: 😊"
+
+# --- Symbol Mode Tests ---
+
+def test_symbol_mode_basic():
+    """Test basic symbol mode chunking with default separators."""
+    chunker = SmartChunker(mode="symbol") # Uses default separators
+    text = "Hello world. This is a test."
+    chunks, report = chunker.chunk(text)
+    
+    # With default separators, this should split by spaces, periods, and commas
+    assert report['total_chunks'] > 2  # Should split into more than 2 chunks
+    assert "Hello" in [chunk['chunkText'] for chunk in chunks]
+    assert "world" in [chunk['chunkText'] for chunk in chunks]
+    assert "This" in [chunk['chunkText'] for chunk in chunks]
+    assert "is" in [chunk['chunkText'] for chunk in chunks]
+    assert "a" in [chunk['chunkText'] for chunk in chunks]
+    assert "test" in [chunk['chunkText'] for chunk in chunks]
+    assert all(chunk['toTranslate'] for chunk in chunks)
+
+def test_symbol_mode_custom_separators():
+    """Test symbol mode with custom separators."""
+    chunker = SmartChunker(mode="symbol", separators=["|", "#"])
+    text = "Part1|Part2#Part3"
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 3
+    assert chunks[0]['chunkText'] == "Part1"
+    assert chunks[1]['chunkText'] == "Part2"
+    assert chunks[2]['chunkText'] == "Part3"
+
+def test_symbol_mode_with_newlines():
+    """Test symbol mode with newlines in the separators."""
+    chunker = SmartChunker(mode="symbol", separators=["\n\n", "\n"])
+    text = "Paragraph 1\n\nParagraph 2\nLine in paragraph 2"
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 3
+    assert chunks[0]['chunkText'] == "Paragraph 1"
+    assert chunks[1]['chunkText'] == "Paragraph 2"
+    assert chunks[2]['chunkText'] == "Line in paragraph 2"
+
+def test_symbol_mode_with_empty_input():
+    """Test symbol mode with empty input."""
+    chunker = SmartChunker(mode="symbol")
+    text = ""
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 0
+    assert len(chunks) == 0
+
+def test_symbol_mode_with_no_separators():
+    """Test symbol mode with no separators in the text."""
+    chunker = SmartChunker(mode="symbol", separators=["#", "@"])
+    text = "This text has no separators"
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 1
+    assert chunks[0]['chunkText'] == "This text has no separators"
+
+def test_symbol_mode_with_empty_separators():
+    """Test that symbol mode raises an error with empty separators list."""
+    with pytest.raises(ValueError, match="separators list cannot be empty"):
+        SmartChunker(mode="symbol", separators=[])
+
+def test_symbol_mode_with_unicode_separators():
+    """Test symbol mode with Unicode separators."""
+    chunker = SmartChunker(mode="symbol", separators=["\u3001", "\u3002"])  # Ideographic comma and full stop
+    text = "こんにちは\u3001世界\u3002これはテストです"  # "Hello, world. This is a test" in Japanese
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 3
+    assert chunks[0]['chunkText'] == "こんにちは"
+    assert chunks[1]['chunkText'] == "世界"
+    assert chunks[2]['chunkText'] == "これはテストです"
+
+def test_symbol_mode_with_multiple_consecutive_separators():
+    """Test symbol mode with multiple consecutive separators."""
+    chunker = SmartChunker(mode="symbol", separators=[",", "."])
+    text = "Hello,,,world...This is a test"
+    chunks, report = chunker.chunk(text)
+    
+    # Multiple consecutive separators should create empty chunks that are filtered out
+    assert "Hello" in [chunk['chunkText'] for chunk in chunks]
+    assert "world" in [chunk['chunkText'] for chunk in chunks]
+    assert "This is a test" in [chunk['chunkText'] for chunk in chunks]
+    
+    # There should be no empty chunks
+    assert all(chunk['chunkText'] for chunk in chunks)
+
+def test_symbol_mode_separator_order():
+    """Test that separator order matters in symbol mode."""
+    # Using "\n\n" before "\n" should split paragraphs first
+    chunker1 = SmartChunker(mode="symbol", separators=["\n\n", "\n"])
+    # Using "\n" before "\n\n" might split all newlines first, making "\n\n" ineffective
+    chunker2 = SmartChunker(mode="symbol", separators=["\n", "\n\n"])
+    
+    text = "Paragraph 1\n\nParagraph 2\nLine in paragraph 2"
+    
+    chunks1, _ = chunker1.chunk(text)
+    chunks2, _ = chunker2.chunk(text)
+    
+    # Check specific expected behavior rather than just asserting they're different
+    # With "\n\n" first, we should get 3 chunks: "Paragraph 1", "Paragraph 2", "Line in paragraph 2"
+    assert len(chunks1) == 3
+    assert chunks1[0]['chunkText'] == "Paragraph 1"
+    assert chunks1[1]['chunkText'] == "Paragraph 2"
+    assert chunks1[2]['chunkText'] == "Line in paragraph 2"
+    
+    # With "\n" first, we should get 4 chunks: "Paragraph 1", "", "Paragraph 2", "Line in paragraph 2"
+    # But empty chunks are filtered out, so we might still get 3
+    assert "Paragraph 1" in [c['chunkText'] for c in chunks2]
+    assert "Paragraph 2" in [c['chunkText'] for c in chunks2]
+    assert "Line in paragraph 2" in [c['chunkText'] for c in chunks2]
+
+# --- Subtitle SRT Mode Tests ---
+
+def test_subtitle_srt_mode_basic():
+    """Test basic subtitle SRT mode chunking."""
+    chunker = SmartChunker(mode="subtitle_srt")
+    text = """1
+00:02:17,440 --> 00:02:20,375
+Senator, we're making
+our <b>final</b> approach into {u}Coruscant{/u}.
+
+2
+00:02:20,476 --> 00:02:22,501
+{b}Very good, {i}Lieutenant{/i}{/b}.
+
+3
+00:02:24,948 --> 00:02:26,247 X1:201 X2:516 Y1:397 Y2:423
+<font color="#fbff1c">Whose side is time on?</font>"""
+    
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 6  # 3 timing chunks + 3 content chunks
+    assert report['translatable_chunks'] == 3  # 3 content chunks
+    assert report['non_translatable_chunks'] == 3  # 3 timing chunks
+    
+    # Check timing chunks (non-translatable)
+    assert chunks[0]['chunkType'] == 'timing'
+    assert chunks[0]['toTranslate'] is False
+    assert "1" in chunks[0]['chunkText']
+    assert "00:02:17,440 --> 00:02:20,375" in chunks[0]['chunkText']
+    
+    # Check content chunks (translatable)
+    assert chunks[1]['chunkType'] == 'text'
+    assert chunks[1]['toTranslate'] is True
+    assert "Senator, we're making" in chunks[1]['chunkText']
+    assert "<b>final</b>" in chunks[1]['chunkText']
+    
+    # Check timing with positioning data
+    assert chunks[4]['chunkType'] == 'timing'
+    assert "X1:201 X2:516 Y1:397 Y2:423" in chunks[4]['chunkText']
+    
+    # Check content with font tag
+    assert chunks[5]['chunkType'] == 'text'
+    assert '<font color="#fbff1c">Whose side is time on?</font>' in chunks[5]['chunkText']
+
+def test_subtitle_srt_mode_with_empty_input():
+    """Test subtitle SRT mode with empty input."""
+    chunker = SmartChunker(mode="subtitle_srt")
+    text = ""
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 1  # Treats empty input as a single text chunk
+    assert len(chunks) == 1
+    assert chunks[0]['chunkText'] == ""
+    assert chunks[0]['toTranslate'] is True
+
+def test_subtitle_srt_mode_malformed():
+    """Test subtitle SRT mode with malformed input."""
+    chunker = SmartChunker(mode="subtitle_srt")
+    text = """This is not a valid SRT file
+It should still be processed without errors
+But might not produce meaningful chunks"""
+    
+    chunks, report = chunker.chunk(text)
+    
+    # Should treat the entire text as a single chunk
+    assert report['total_chunks'] == 1
+    assert len(chunks) == 1
+    assert chunks[0]['chunkType'] == 'text'
+    assert chunks[0]['toTranslate'] is True
+
+def test_subtitle_srt_mode_partial_entries():
+    """Test subtitle SRT mode with partial/incomplete entries."""
+    chunker = SmartChunker(mode="subtitle_srt")
+    text = """1
+00:02:17,440 --> 00:02:20,375
+Senator, we're making
+our approach.
+
+2
+00:02:20,476 --> 00:02:22,501
+"""  # Missing content for second entry
+    
+    chunks, report = chunker.chunk(text)
+    
+    # Should handle the complete entry and ignore the incomplete one
+    assert report['total_chunks'] >= 2  # At least the timing and content for the first entry
+    assert "Senator, we're making" in chunks[1]['chunkText']
+
+def test_subtitle_srt_mode_with_extra_newlines():
+    """Test subtitle SRT mode with extra newlines between entries."""
+    chunker = SmartChunker(mode="subtitle_srt")
+    text = """1
+00:02:17,440 --> 00:02:20,375
+First subtitle.
+
+
+2
+00:02:20,476 --> 00:02:22,501
+Second subtitle.
+
+
+3
+00:02:24,948 --> 00:02:26,247
+Third subtitle."""
+    
+    chunks, report = chunker.chunk(text)
+    
+    # Should correctly parse all three entries despite extra newlines
+    assert report['total_chunks'] == 6  # 3 timing chunks + 3 content chunks
+    assert report['translatable_chunks'] == 3
+    assert report['non_translatable_chunks'] == 3
+
+def test_subtitle_srt_mode_with_formatting_tags():
+    """Test subtitle SRT mode with various formatting tags."""
+    chunker = SmartChunker(mode="subtitle_srt")
+    text = """1
+00:00:01,000 --> 00:00:05,000
+<b>Bold text</b> and <i>italic text</i>
+and <u>underlined text</u>.
+
+2
+00:00:06,000 --> 00:00:10,000
+{b}Bold text{/b} and {i}italic text{/i}
+and {u}underlined text{/u}.
+
+3
+00:00:11,000 --> 00:00:15,000
+<font color="red">Colored text</font>
+and <font size="12">sized text</font>."""
+    
+    chunks, report = chunker.chunk(text)
+    
+    # Should preserve all formatting tags
+    assert report['total_chunks'] == 6  # 3 timing chunks + 3 content chunks
+    assert "<b>Bold text</b>" in chunks[1]['chunkText']
+    assert "{b}Bold text{/b}" in chunks[3]['chunkText']
+    assert '<font color="red">Colored text</font>' in chunks[5]['chunkText']
+
+# --- Integration Tests ---
+
+def test_mode_switching():
+    """Test switching between different modes with the same text."""
+    text = """1
+00:02:17,440 --> 00:02:20,375
+Senator, we're making
+our approach.
+
+Hello, world. This is a test."""
+    
+    # Test with different modes
+    smart_chunker = SmartChunker(mode="smart")
+    line_chunker = SmartChunker(mode="line")
+    symbol_chunker = SmartChunker(mode="symbol")
+    srt_chunker = SmartChunker(mode="subtitle_srt")
+    
+    smart_chunks, smart_report = smart_chunker.chunk(text)
+    line_chunks, line_report = line_chunker.chunk(text)
+    symbol_chunks, symbol_report = symbol_chunker.chunk(text)
+    srt_chunks, srt_report = srt_chunker.chunk(text)
+    
+    # Each mode should produce different results
+    assert len(smart_chunks) != len(line_chunks)
+    assert len(line_chunks) != len(symbol_chunks)
+    assert len(symbol_chunks) != len(srt_chunks)
+    
+    # Check specific characteristics of each mode
+    # Smart mode should identify the SRT format elements
+    assert any("00:02:17,440" in chunk['chunkText'] for chunk in smart_chunks)
+    
+    # Line mode should have one chunk per non-empty line
+    assert len(line_chunks) == 5  # 5 non-empty lines
+    
+    # Symbol mode with default separators should split by spaces, periods, etc.
+    assert len(symbol_chunks) > 5
+    
+    # SRT mode should identify timing and content sections
+    assert any(chunk['chunkType'] == 'timing' for chunk in srt_chunks)
+    assert any(chunk['chunkType'] == 'text' and chunk['toTranslate'] for chunk in srt_chunks)

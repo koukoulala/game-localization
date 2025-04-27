@@ -8,8 +8,35 @@ class SmartChunker:
     translatable text segments.
     """
 
-    def __init__(self, min_chunk_size: int = 50, max_chunk_size: int = 500):
-        # ... (init validation remains the same) ...
+    def __init__(self, min_chunk_size: int = 50, max_chunk_size: int = 500, mode: str = "smart", separators: list = None):
+        # Validate mode
+        valid_modes = ["smart", "line", "symbol", "subtitle_srt"]
+        if mode not in valid_modes:
+            raise ValueError(f"mode must be one of {valid_modes}")
+        
+        self.mode = mode
+        
+        # Validate separators for symbol mode
+        if mode == "symbol":
+            if separators is not None:
+                if not separators:
+                    raise ValueError("separators list cannot be empty")
+                self.separators = separators
+            else:
+                # Default separators for symbol mode
+                self.separators = [".", ",", " ", "\n", "\n\n"]
+        else:
+            # Default separators for other modes (not used but kept for consistency)
+            self.separators = separators or [
+                "\n\n", "\n", " ", ".", ",", "\u200b",  # Zero-width space
+                "\uff0c",  # Fullwidth comma
+                "\u3001",  # Ideographic comma
+                "\uff0e",  # Fullwidth full stop
+                "\u3002",  # Ideographic full stop
+                ""
+            ]
+        
+        # Validate min_chunk_size and max_chunk_size
         if not isinstance(min_chunk_size, int) or min_chunk_size <= 0:
             raise ValueError("min_chunk_size must be a positive integer")
         if not isinstance(max_chunk_size, int) or max_chunk_size < min_chunk_size:
@@ -214,7 +241,21 @@ class SmartChunker:
         return [c for c in chunks if c]
 
     def chunk(self, text: str) -> tuple[list[dict], dict]:
-        """ Performs the chunking operation """
+        """Performs the chunking operation based on the selected mode."""
+        if not isinstance(text, str):
+            raise TypeError("Input text must be a string.")
+        
+        if self.mode == "smart":
+            return self._chunk_smart(text)
+        elif self.mode == "line":
+            return self._chunk_line(text)
+        elif self.mode == "symbol":
+            return self._chunk_symbol(text)
+        elif self.mode == "subtitle_srt":
+            return self._chunk_subtitle_srt(text)
+    
+    def _chunk_smart(self, text: str) -> tuple[list[dict], dict]:
+        """Original smart chunking algorithm."""
         if not isinstance(text, str): raise TypeError("Input text must be a string.")
 
         # Step 1: Initial Split using finditer (isolate all elements)
@@ -521,3 +562,158 @@ class SmartChunker:
                 report[type_key] = report.get(type_key, 0) + 1
         if report['unknown_chunks'] == 0: del report['unknown_chunks']
         return final_indexed_chunks, report
+    
+    def _chunk_line(self, text: str) -> tuple[list[dict], dict]:
+        """
+        Chunks text by lines, ignoring empty lines.
+        Each line becomes a separate chunk regardless of length.
+        All chunks are considered translatable.
+        """
+        lines = text.split("\n")
+        chunks = []
+        report = {
+            'total_chunks': 0,
+            'translatable_chunks': 0,
+            'non_translatable_chunks': 0,
+            'text_chunks': 0
+        }
+        
+        for line in lines:
+            line = line.strip()
+            if line:  # Skip empty lines
+                chunk = {
+                    'chunkText': line,
+                    'toTranslate': True,
+                    'chunkType': 'text',
+                    'index': len(chunks)
+                }
+                chunks.append(chunk)
+                report['total_chunks'] += 1
+                report['translatable_chunks'] += 1
+                report['text_chunks'] += 1
+        
+        return chunks, report
+    
+    def _chunk_symbol(self, text: str) -> tuple[list[dict], dict]:
+        """
+        Chunks text based on a list of separator symbols.
+        All chunks are considered translatable.
+        """
+        chunks = []
+        report = {
+            'total_chunks': 0,
+            'translatable_chunks': 0,
+            'non_translatable_chunks': 0,
+            'text_chunks': 0
+        }
+        
+        # Separators list is guaranteed non-empty by __init__ validation.
+        
+        # Start with the whole text
+        current_chunks = [text]
+        
+        # Iterate through separators and split chunks
+        for separator in self.separators:
+            if not separator:  # Skip empty separator
+                continue
+            
+            new_chunks = []
+            for chunk in current_chunks:
+                if separator in chunk:
+                    # Split by this separator and keep the order
+                    parts = chunk.split(separator)
+                    for part in parts:
+                        new_chunks.append(part)
+                else:
+                    new_chunks.append(chunk)
+            
+            # Update current_chunks for the next separator
+            current_chunks = new_chunks
+        
+        # Create final chunks
+        for i, chunk_text in enumerate(current_chunks):
+            chunk_text = chunk_text.strip()
+            if chunk_text:  # Skip empty chunks
+                chunk = {
+                    'chunkText': chunk_text,
+                    'toTranslate': True,
+                    'chunkType': 'text',
+                    'index': i
+                }
+                chunks.append(chunk)
+                report['total_chunks'] += 1
+                report['translatable_chunks'] += 1
+                report['text_chunks'] += 1
+        
+        return chunks, report
+    
+    def _chunk_subtitle_srt(self, text: str) -> tuple[list[dict], dict]:
+        """
+        Chunks .srt subtitle files into timing sections (non-translatable) and content sections (translatable).
+        Preserves original formatting.
+        """
+        chunks = []
+        report = {
+            'total_chunks': 0,
+            'translatable_chunks': 0,
+            'non_translatable_chunks': 0,
+            'text_chunks': 0,
+            'timing_chunks': 0
+        }
+        
+        # Regular expression to match SRT format:
+        # 1. Line number
+        # 2. Timestamp line (00:00:00,000 --> 00:00:00,000)
+        # 3. Content (one or more lines)
+        # 4. Blank line
+        
+        import re
+        pattern = re.compile(r'(\d+)\s*\n(\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3}(?:[ \t]+X1:\d+ X2:\d+ Y1:\d+ Y2:\d+)?)\s*\n((?:.+(?:\n|$))+?)(?:\n\s*\n|$)', re.MULTILINE)
+        
+        matches = list(pattern.finditer(text))
+        
+        # If no matches found, treat the entire text as a single chunk
+        if not matches:
+            chunks.append({
+                'chunkText': text.strip(),
+                'toTranslate': True,
+                'chunkType': 'text',
+                'index': 0
+            })
+            report['total_chunks'] = 1
+            report['translatable_chunks'] = 1
+            report['text_chunks'] = 1
+            return chunks, report
+        
+        for match in matches:
+            # Timing section (non-translatable)
+            line_num = match.group(1)
+            timestamp = match.group(2)
+            timing_text = f"{line_num}\n{timestamp}"
+            
+            timing_chunk = {
+                'chunkText': timing_text,
+                'toTranslate': False,
+                'chunkType': 'timing',
+                'index': len(chunks)
+            }
+            chunks.append(timing_chunk)
+            report['total_chunks'] += 1
+            report['non_translatable_chunks'] += 1
+            report['timing_chunks'] = report.get('timing_chunks', 0) + 1
+            
+            # Content section (translatable)
+            content = match.group(3).strip()
+            if content:
+                content_chunk = {
+                    'chunkText': content,
+                    'toTranslate': True,
+                    'chunkType': 'text',
+                    'index': len(chunks)
+                }
+                chunks.append(content_chunk)
+                report['total_chunks'] += 1
+                report['translatable_chunks'] += 1
+                report['text_chunks'] += 1
+        
+        return chunks, report
