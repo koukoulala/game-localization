@@ -20,16 +20,44 @@ Turjuman uses a smart pipeline powered by LangGraph 🦜🔗 with two translatio
 
 - **⚡ Quick Translation Mode**: A streamlined workflow that bypasses terminology unification, critique, and revision steps for faster processing and lower token usage. Ideal for drafts or when speed is more important than perfect quality.
 
+
+## ✂️ Smart Chunking Options
+
+Turjuman offers four intelligent chunking strategies to optimize your translation process:
+
+### 🧠 Smart Mode (Default)
+This mode is great for markdown or technical documents. Intelligently identifies and preserves special elements like code blocks, images, URLs, and footnotes. It splits text into optimal chunks while keeping related content together and ensuring non-translatable elements remain intact.
+- Perfect for technical documents, programming tutorials, or content with mixed elements
+- Preserves formatting and structure while optimizing for translation quality
+- Automatically handles bullet points, inline code, and other complex formatting
+
+### 📏 Line Mode
+Splits text by line breaks, making each line a separate chunk. All chunks are considered translatable.
+- Ideal for poetry, lyrics, or content where line breaks have semantic meaning
+- Preserves the exact line structure of the original document
+- Simple and predictable chunking pattern
+
+### 🔣 Symbol Mode
+Divides text based on specific separator symbols (like periods, commas, or custom separators).
+- Great for content with specific delimiter patterns
+- Allows customization of separator symbols
+- Useful for specialized formats with unique separation needs
+
+### 🎬 Subtitle Mode
+Specially designed for .srt subtitle files, separating timing information (non-translatable) from content (translatable).
+- Perfect for subtitle translation projects
+- Preserves exact subtitle timing and formatting
+- Handles subtitle-specific formatting and structure
+
 ### 📋 Translation Pipeline
 
 1. **🚀 init_translation**: Start the translation job
 2. **🧐 terminology_unification**: Find and unify key terms, User can provide manual list of prefered glossary or dicitenary "word paires" this feature available in (Deep Mode only)
-3. **✂️ chunk_document**: Split the book into chunks
+3. **✂️ chunk_document**: Split the book into chunks using one of the available chunking strategies
 4. **🌐 initial_translation**: Translate chunks in parallel
 5. **🤔 critique_stage**: Review translations, catch errors (Deep Mode only)
 6. **✨ final_translation**: Refine translations (Deep Mode only)
 7. **📜 assemble_document**: Stitch everything back together
-
 
 ### 📊 Translation Flow
 
