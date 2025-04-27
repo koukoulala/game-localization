@@ -199,18 +199,20 @@ document.addEventListener('alpine:init', () => {
                         this.apiUrl = config.api_url;
                     }
                     
-                    // Apply default settings if provider is empty or not set
-                    if (!this.inputData.config.provider || this.inputData.config.provider.trim() === '') {
-                        this.inputData.config.provider = config.provider;
-                        this.inputData.config.model = config.model;
-                        this.inputData.config.source_lang = config.source_lang;
-                        this.inputData.config.target_lang = config.target_lang;
-                        this.inputData.config.target_language_accent = config.target_language_accent;
-                        if (config.translation_mode) {
-                            this.inputData.config.translation_mode = config.translation_mode;
-                        }
-                        this.updateModels();
+                    // Apply default settings whenever a default config is loaded
+                    // This ensures the default config overrides localStorage values for these fields
+                    this.inputData.config.provider = config.provider;
+                    this.inputData.config.model = config.model;
+                    this.inputData.config.source_lang = config.source_lang;
+                    this.inputData.config.target_lang = config.target_lang;
+                    this.inputData.config.target_language_accent = config.target_language_accent;
+                    if (config.translation_mode) {
+                        this.inputData.config.translation_mode = config.translation_mode;
+                    } else {
+                        // If default config doesn't specify a mode, default to deep_mode for consistency.
+                        this.inputData.config.translation_mode = 'deep_mode';
                     }
+                    this.updateModels(); // Update models based on the newly set provider
                 }
             });
 
