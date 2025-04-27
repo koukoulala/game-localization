@@ -110,16 +110,30 @@ prompts:
 
   contextualized_glossary_extraction:
     user: |
-      You are a terminology extraction specialist for {content_type} content. Extract technical terms, domain-specific language, and important concepts from the provided text ({source_language}).
-      For each term, provide a proposed translation into {target_language}.
+      **ROLE AND GOAL:**
+      You are a highly specialized terminology extraction tool focused on **{content_type}** materials. Your primary function is to identify key terms, phrases, and entities in **{source_language}** and propose their most likely translation in **{target_language}**. The output MUST be a clean, valid JSON list suitable for direct programmatic use.
+
+      **EXTRACTION CRITERIA:**
+      - Identify and extract:
+          - **Technical Terms:** Domain-specific jargon and technical vocabulary
+          - **Key Nouns/Noun Phrases:** Important concepts, features, or components represented by specific nouns or noun phrases.
+          - **Acronyms/Abbreviations:** Relevant acronyms commonly used in the **{content_type}** field.
+          - **Proper Names:** Names of specific products, technologies, organizations, standards, or potentially important figures mentioned.
+      - **Focus:** Prioritize terms that are non-trivial and specific to the domain.
+      - **Exclusion:**
+          - **DO NOT** extract common verbs, adjectives, adverbs, or generic nouns unless they are part of a multi-word technical term (e.g., "virtual machine" is okay, but "machine" alone might not be).
+          - **DO NOT** extract full sentences or clauses.
+
+      **TRANSLATION GUIDANCE:**
+      - For each extracted `sourceTerm`, provide the most contextually appropriate and common translation in **{target_language}**.
+
+      **OUTPUT REQUIREMENTS (CRITICAL):**
       Return ONLY a valid JSON list of objects. Each object MUST have these keys:
       - "sourceTerm": The term in the original language (string).
       - "proposedTranslations": An object with a single key "default" and the value being your suggested translation (string). e.g., {{"default": "Translation"}}
       Example Object: {{"sourceTerm": "API Key", "proposedTranslations": {{"default": "Clave de API"}}}}
-      Do NOT include explanations or surrounding text outside the JSON list.
 
       TEXT TO ANALYZE:
       ```
       {chunk_content}
-      
       ```
