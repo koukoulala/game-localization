@@ -114,6 +114,19 @@ def translate_chunk_worker(worker_input: Dict[str, Any]) -> Dict[str, Any]:
         translated_text = translation_response
         translation_metadata = getattr(translation_response, 'response_metadata', {})
 
+        # Some LLM add extra ``` tags to translated text 
+        # Check for and remove extra ``` if they wrap the translation and were not present in the original chunk_text
+        original_chunk_had_wrapper = chunk_text.startswith("```") and chunk_text.endswith("```")
+        translated_chunk_has_wrapper = translated_text.startswith("```") and translated_text.endswith("```")
+
+        if translated_chunk_has_wrapper and not original_chunk_had_wrapper:
+            log_to_state(state_essentials, f"{worker_log_prefix}: Removing wrapping ``` from translation.", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
+            # Strip the leading and trailing ```
+            # Using strip() might be too aggressive if ``` could appear legitimately inside.
+            # Slicing is safer for removing only the exact prefix/suffix.
+            translated_text = translated_text[3:-3].strip() # Use strip() after slicing to remove potential whitespace left by slicing
+
+
         # Log the translated text (configurable with LOG_API_RESPONSES)
         log_to_state(state_essentials, f"{worker_log_prefix}: Received translation response:\n---\n{translated_text}\n---", "DEBUG", node=NODE_NAME, log_type="LOG_API_RESPONSES")
 
