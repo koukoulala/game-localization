@@ -3,38 +3,42 @@ prompts:
 
   translation:
     user: |
-      You are an expert educator and explainer specializing in {content_type} from {source_language} to {target_language}, USE {target_accent_guidance} as language style
+      **ROLE AND GOAL:**
+      You are an expert translator specializing in **{content_type}**,you will only translating from **{source_language}** to **{target_language}**. Your goal is to produce an accurate and natural-sounding translation that strictly adheres to the **{target_accent_guidance}** dialect and style, while **perfectly preserving all original Markdown formatting**.
 
-      YOUR MOST CRITICAL RESPONSIBILITY is to explain in your way and not just translate, while creating explanation you MUST PRESERVE ALL ORIGINAL MARKDOWN SYNTAX AND STRUCTURE EXACTLY as it appears in the source text.
+      **CRITICAL INSTRUCTION: MARKDOWN PRESERVATION**
+      - You MUST replicate ALL original Markdown syntax and structure **EXACTLY** as it appears in the source text.
+      - **DO NOT** add, remove, or modify any Markdown elements (e.g., `#`, `*`, `-`, `_`, `**`, ` ``` `, `|`, `>`).
 
-      MARKDOWN PRESERVATION RULES (CRITICAL):
-      1. Headings: Keep all `#`, `##`, etc. exactly as they appear
-      2. Lists: Maintain all `-`, `*`, `1.` markers with their exact indentation
-      3. Formatting: Preserve all `**bold**`, `*italic*`, `_italic_` markers
-      4. Links: In `[link text](URL)`, translate only the 'link text', never modify the URL
-      5. Code: NEVER translate text inside backticks (`code`) or code blocks (```...```)
-      6. Code blocks: Keep all ```language ... ``` fences intact with language identifiers
-      7. Images: Keep all image references `![alt text](image.png)` intact, only translate the alt text
-      8. Blockquotes: Preserve all `>` markers
-      9. Tables: Maintain all `|` and `-` structure exactly
-      
-      TRANSLATION QUALITY RULES:
-      - Adapt the language style and tone to the specified accent/dialect: {target_accent_guidance}.
-      - Translate the text content accurately according to context and terminology
-      - Maintain the same paragraph structure as the original
-      - Use appropriate technical terminology for {content_type}
-      - Follow the provided terminology glossary exactly:
-      ```
-      {filtered_term_guidance}
-      ```
+      **Markdown Preservation Rules (Non-Negotiable):**
+      1.  **Headings:** Keep all `#`, `##`, etc., exactly as they are.
+      2.  **Lists:** Maintain `-`, `*`, `1.` markers and their exact indentation.
+      3.  **Formatting:** Preserve all `**bold**`, `*italic*`, `_italic_`, `~strikethrough~` markers. Translate only the text *between* the markers.
+      4.  **Links:** In `[link text](URL)`, translate ONLY the `link text`. **NEVER** modify the `(URL)` part.
+      5.  **Inline Code:** **NEVER** translate text inside single backticks (`code`).
+      6.  **Code Blocks:** **NEVER** translate text inside fenced code blocks (```...```). Preserve the fence markers and any language identifiers (e.g., ` ```python `) exactly.
+      7.  **Images:** In `![alt text](image.png)`, translate ONLY the `alt text`. Keep `![]()` structure identical.
+      8.  **Blockquotes:** Preserve all `>` markers and their structure.
+      9.  **Tables:** Maintain the exact `|` and `-` structure. Translate only the text within table cells.
+      10. **HTML Tags:** If any raw HTML tags appear, leave them completely unchanged.
 
-      OUTPUT FORMAT:
-      - Return ONLY the explained text with preserved markdown
-      - Do not add explanations or notes
-      - Do not add or remove any markdown elements
-      - Ensure the output can be parsed as valid markdown
+      **TRANSLATION QUALITY GUIDELINES:**
+      - **Accuracy:** Translate the meaning precisely according to the context and専門分野 (specialized field) of **{content_type}**.
+      - **Style:** Strictly adopt the language style, tone, and vocabulary specified by **{target_accent_guidance}**.
+      - **Structure:** Maintain the original paragraph breaks.
+      - **Terminology:**
+          - Use appropriate technical terms for **{content_type}**.
+          - Adhere strictly to the provided glossary:
+            ```
+            {filtered_term_guidance}
+            ```
 
-      DOCUMENT CONTENT FOR TRANSLATION
+      **OUTPUT REQUIREMENTS:**
+      - Provide ONLY the translated text with the perfectly preserved Markdown structure.
+      - **DO NOT** include any explanations, notes, apologies, or introductory/concluding remarks.
+      - The output must be renderable as valid Markdown.
+
+      **DOCUMENT CONTENT FOR TRANSLATION:**
       ```
       {chunk_text}
       ```
