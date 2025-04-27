@@ -302,8 +302,20 @@ def assemble_document(state: TranslationState) -> TranslationState:
     # Sort by original index and join
     sorted_chunks = sorted(all_chunks, key=lambda x: x["index"])
     
-    # Join the chunks with appropriate separator
-    separator = "\n\n"
+    # Determine the separator based on the original file type
+    original_file_type = state.get("original_file_type", ".txt").lower() # Default to .txt
+    
+    if original_file_type == ".srt":
+        # SRT chunks should contain necessary newlines, including the blank line between entries
+        separator = ""
+        log_to_state(state, "Using empty separator for SRT file assembly.", "INFO", node=NODE_NAME)
+    elif original_file_type == ".md":
+        separator = "\n\n"
+        log_to_state(state, "Using paragraph separator ('\\n\\n') for Markdown file assembly.", "INFO", node=NODE_NAME)
+    else: # Default for .txt and others
+        separator = "\n"
+        log_to_state(state, f"Using newline separator ('\\n') for {original_file_type} file assembly.", "INFO", node=NODE_NAME)
+        
     final_document = separator.join([chunk["content"] for chunk in sorted_chunks])
 
     state["final_document"] = final_document

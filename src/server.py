@@ -360,14 +360,24 @@ async def download_job(job_id: str):
     source_lang = job.get("source_lang")
     target_lang = job.get("target_lang")
     
-    # Use the stored filename if available, otherwise create a default one
+    # Determine the file extension based on the original file type
+    original_file_type = job.get("original_file_type", ".txt").lower() # Default to .txt if not found
+    if not original_file_type.startswith('.'):
+        original_file_type = '.' + original_file_type # Ensure it starts with a dot
+        
+    # Use the stored base filename if available, otherwise create a default one
     if job.get("filename"):
-        filename = f"{job['filename']}.txt"
+        # Remove existing extension from stored filename if present, before adding the correct one
+        base_filename = os.path.splitext(job['filename'])[0]
     else:
-        filename = f"translation_{source_lang}_to_{target_lang}_{job_id}.txt"
+        base_filename = f"translation_{source_lang}_to_{target_lang}_{job_id}"
+    
+    # Add source and destination languages to the filename as requested
+    filename = f"{base_filename}_{source_lang}_{target_lang}{original_file_type}"
     
     # Replace spaces with underscores in filename
     filename = filename.replace(" ", "_")
+    logger.info(f"Serving download for job {job_id} as filename: {filename} (Original type: {original_file_type})")
     
     # Return as downloadable file
     # Properly encode filename for HTTP headers to handle non-ASCII characters

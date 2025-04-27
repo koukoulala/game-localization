@@ -12,6 +12,8 @@ document.addEventListener('alpine:init', () => {
                 model: localStorage.getItem('model') || '',
                 target_language_accent: localStorage.getItem('target_accent') || 'professional',
                 translation_mode: localStorage.getItem('translation_mode') || 'deep_mode',
+                chunking_algorithm: localStorage.getItem('chunking_algorithm') || 'smart',
+                symbol_separators: localStorage.getItem('symbol_separators') || '["."]',
             },
         },
         originalFilename: '', // Store the original filename
@@ -67,6 +69,8 @@ document.addEventListener('alpine:init', () => {
             target_lang: '',
             target_language_accent: '',
             translation_mode: 'deep_mode',
+            chunking_algorithm: 'smart',
+            symbol_separators: '["."]',
             set_as_default: true
         },
         modelFilter: '',
@@ -169,6 +173,8 @@ document.addEventListener('alpine:init', () => {
             this.$watch('inputData.config.model', (val) => localStorage.setItem('model', val));
             this.$watch('inputData.config.target_language_accent', (val) => localStorage.setItem('target_accent', val));
             this.$watch('inputData.config.translation_mode', (val) => localStorage.setItem('translation_mode', val));
+            this.$watch('inputData.config.chunking_algorithm', (val) => localStorage.setItem('chunking_algorithm', val));
+            this.$watch('inputData.config.symbol_separators', (val) => localStorage.setItem('symbol_separators', val));
 
             // Set initial model list if provider/models are loaded from localStorage
             this.updateModels();
@@ -212,6 +218,23 @@ document.addEventListener('alpine:init', () => {
                         // If default config doesn't specify a mode, default to deep_mode for consistency.
                         this.inputData.config.translation_mode = 'deep_mode';
                     }
+                    
+                    // Set chunking algorithm
+                    if (config.chunking_algorithm) {
+                        this.inputData.config.chunking_algorithm = config.chunking_algorithm;
+                    } else {
+                        // If default config doesn't specify an algorithm, default to smart for consistency.
+                        this.inputData.config.chunking_algorithm = 'smart';
+                    }
+                    
+                    // Set symbol separators if available
+                    if (config.symbol_separators) {
+                        this.inputData.config.symbol_separators = config.symbol_separators;
+                    } else {
+                        // Default symbol separators
+                        this.inputData.config.symbol_separators = '["."]';
+                    }
+                    
                     this.updateModels(); // Update models based on the newly set provider
                 }
             });
@@ -751,9 +774,36 @@ connectToJobStream(jobId) {
             console.log('Updated config models:', this.configModels);
         },
         
+        isValidSymbolSeparators() {
+            try {
+                const separators = JSON.parse(this.newLLMConfig.symbol_separators);
+                // Check if it's an array and not empty
+                if (!Array.isArray(separators) || separators.length === 0) {
+                    return false;
+                }
+                // Check if all elements are strings
+                if (!separators.every(item => typeof item === 'string')) {
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                // JSON parsing failed
+                return false;
+            }
+        },
+        
         canSaveLLMConfig() {
-            return this.newLLMConfig.provider &&
-                   this.newLLMConfig.model;
+            // Basic validation for required fields
+            if (!this.newLLMConfig.provider || !this.newLLMConfig.model) {
+                return false;
+            }
+            
+            // Additional validation for symbol separators when symbol mode is selected
+            if (this.newLLMConfig.chunking_algorithm === 'symbol' && !this.isValidSymbolSeparators()) {
+                return false;
+            }
+            
+            return true;
         },
         
         async saveLLMConfig() {
@@ -796,6 +846,8 @@ connectToJobStream(jobId) {
                     target_lang: '',
                     target_language_accent: '',
                     translation_mode: 'deep_mode',
+                    chunking_algorithm: 'smart',
+                    symbol_separators: '["."]',
                     set_as_default: true
                 };
                 
@@ -942,6 +994,8 @@ connectToJobStream(jobId) {
                 target_lang: config.target_lang,
                 target_language_accent: config.target_language_accent || '',
                 translation_mode: config.translation_mode || 'deep_mode',
+                chunking_algorithm: config.chunking_algorithm || 'smart',
+                symbol_separators: config.symbol_separators || '["."]',
                 set_as_default: config.is_default,
                 id: config.id // Store the ID for updating
             };
@@ -966,6 +1020,8 @@ connectToJobStream(jobId) {
                 target_lang: config.target_lang,
                 target_language_accent: config.target_language_accent || '',
                 translation_mode: config.translation_mode || 'deep_mode',
+                chunking_algorithm: config.chunking_algorithm || 'smart',
+                symbol_separators: config.symbol_separators || '["."]',
                 set_as_default: false // Don't set as default by default
             };
             

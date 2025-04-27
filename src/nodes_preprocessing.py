@@ -232,12 +232,28 @@ def chunk_document(state: TranslationState) -> TranslationState:
             min_size = default_min_size
             log_to_state(state, f"Non-integer MIN_CHUNK_SIZE env var, using default: {min_size}", "WARNING", node=NODE_NAME)
 
+        # Get chunking algorithm from config
+        chunking_algorithm = config.get("chunking_algorithm", "smart")
+        log_to_state(state, f"Using chunking algorithm: {chunking_algorithm}", "INFO", node=NODE_NAME)
+
+        # Get symbol separators if using symbol mode
+        separators = None
+        if chunking_algorithm == "symbol":
+            symbol_separators_str = config.get("symbol_separators", '["."]')
+            try:
+                import json
+                separators = json.loads(symbol_separators_str)
+                log_to_state(state, f"Using symbol separators: {separators}", "INFO", node=NODE_NAME)
+            except json.JSONDecodeError as e:
+                log_to_state(state, f"Error parsing symbol separators: {e}. Using default separator '.'", "WARNING", node=NODE_NAME)
+                separators = ["."]  # Default to period if parsing fails
+
         # Initialize SmartChunker and process the content
-        chunker = SmartChunker(min_chunk_size=min_size, max_chunk_size=max_size)
+        chunker = SmartChunker(min_chunk_size=min_size, max_chunk_size=max_size, mode=chunking_algorithm, separators=separators)
         chunks_with_metadata, report = chunker.chunk(content)
         
         # Log chunking report
-        log_to_state(state, f"Chunking report: {report}, min_chunk_size:{min_size}, max_chunk_size:{max_size} ", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
+        log_to_state(state, f"Chunking report: {report}, min_chunk_size:{min_size}, max_chunk_size:{max_size}, chunking_algorithm:{chunking_algorithm}", "DEBUG", node=NODE_NAME, log_type="LOG_CHUNK_PROCESSING")
 
         # Separate translatable and non-translatable chunks
         translatable_chunks = []
@@ -328,8 +344,24 @@ def terminology_unification(state: TranslationState) -> TranslationState:
             chunks = [content]
             log_to_state(state, f"Content length <= {min_size}, treating as a single chunk for terminology extraction.", "INFO", node=NODE_NAME)
         else:
+            # Get chunking algorithm from config
+            chunking_algorithm = config.get("chunking_algorithm", "smart")
+            log_to_state(state, f"Using chunking algorithm for terminology extraction: {chunking_algorithm}", "INFO", node=NODE_NAME)
+
+            # Get symbol separators if using symbol mode
+            separators = None
+            if chunking_algorithm == "symbol":
+                symbol_separators_str = config.get("symbol_separators", '["."]')
+                try:
+                    import json
+                    separators = json.loads(symbol_separators_str)
+                    log_to_state(state, f"Using symbol separators for terminology extraction: {separators}", "INFO", node=NODE_NAME)
+                except json.JSONDecodeError as e:
+                    log_to_state(state, f"Error parsing symbol separators for terminology extraction: {e}. Using default separator '.'", "WARNING", node=NODE_NAME)
+                    separators = ["."]  # Default to period if parsing fails
+
             # Initialize SmartChunker for terminology extraction
-            chunker = SmartChunker(min_chunk_size=min_size, max_chunk_size=chunk_size)
+            chunker = SmartChunker(min_chunk_size=min_size, max_chunk_size=chunk_size, mode=chunking_algorithm, separators=separators)
             chunks_with_metadata, _ = chunker.chunk(content)
             # Extract only the text content from translatable chunks
             initial_chunks = [chunk["chunkText"] for chunk in chunks_with_metadata if chunk["toTranslate"]]

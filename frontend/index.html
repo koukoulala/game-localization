@@ -529,9 +529,9 @@
                     </h2>
                      <div>
                         <label for="file-upload" class="block text-sm font-medium mb-1">
-                            <i class="fas fa-upload mr-1"></i> Upload File (.md, .txt):
+                            <i class="fas fa-upload mr-1"></i> Upload File (.md, .txt, .csv, .srt):
                         </label>
-                        <input id="file-upload" type="file" @change="handleFileUpload($event)" accept=".md,.markdown,.txt" class="block w-full text-sm text-[var(--text-muted)] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[var(--bg-tertiary)] file:text-[var(--text-primary)] hover:file:bg-opacity-80">
+                        <input id="file-upload" type="file" @change="handleFileUpload($event)" accept=".md,.markdown,.txt,.csv,.srt" class="block w-full text-sm text-[var(--text-muted)] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[var(--bg-tertiary)] file:text-[var(--text-primary)] hover:file:bg-opacity-80">
                         <p x-show="originalFilename" class="mt-1 text-sm text-[var(--text-muted)]">Selected file: <span x-text="originalFilename"></span></p>
                     </div>
                     <div class="mt-2">
@@ -971,6 +971,34 @@
                                     </select>
                                     <p class="mt-1 text-xs text-[var(--text-muted)]">Set the default translation mode for this configuration.</p>
                                 </div>
+                                <!-- Content Chunking Algorithm Dropdown -->
+                                <div>
+                                    <label for="llm_chunking_algorithm" class="block text-sm font-medium">
+                                        <i class="fas fa-puzzle-piece mr-1"></i> Content chunking algorithm:
+                                    </label>
+                                    <select id="llm_chunking_algorithm" x-model="newLLMConfig.chunking_algorithm" class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm">
+                                        <option value="smart">Smart paragraph chunking</option>
+                                        <option value="line">Line by line chunking</option>
+                                        <option value="subtitle_srt">Subtitle (.srt)</option>
+                                        <option value="symbol">Symbol separated paragraph</option>
+                                    </select>
+                                    <p class="mt-1 text-xs text-[var(--text-muted)]">Choose how Turjuman will chunk and translate your document.</p>
+                                    
+                                    <!-- Symbol Separators Input (conditionally shown) -->
+                                    <div x-show="newLLMConfig.chunking_algorithm === 'symbol'" class="mt-2 p-2 border border-[var(--border-color)] rounded-md bg-[var(--bg-tertiary)]">
+                                        <label for="symbol_separators" class="block text-sm font-medium">
+                                            <i class="fas fa-list mr-1"></i> Symbol Separators:
+                                        </label>
+                                        <input type="text" id="symbol_separators" x-model="newLLMConfig.symbol_separators"
+                                               placeholder='e.g., ["."]  or  [".", ","]'
+                                               class="mt-1 block w-full rounded-md shadow-sm focus:ring focus:ring-opacity-50 sm:text-sm"
+                                               :class="{'border-red-500': newLLMConfig.chunking_algorithm === 'symbol' && !isValidSymbolSeparators()}">
+                                        <p class="mt-1 text-xs text-[var(--text-muted)]">Enter symbols as a JSON array. Examples: ["."] for periods only, [".", ","] for periods and commas.</p>
+                                        <p x-show="newLLMConfig.chunking_algorithm === 'symbol' && !isValidSymbolSeparators()" class="mt-1 text-xs text-red-500">
+                                            Please enter a valid JSON array of strings. Example: ["."] or [".", ","]
+                                        </p>
+                                    </div>
+                                </div>
                                 <!-- Toggle Switch for Set as Default -->
                                 <div class="flex items-center justify-between">
                                     <label for="llm_default_toggle" class="text-sm font-medium">Set as default configuration</label>
@@ -1010,6 +1038,7 @@
                                             <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Provider</th>
                                             <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Model</th>
                                             <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Translation Mode</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Chunking Algorithm</th>
                                             <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Default</th>
                                             <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Actions</th>
                                         </tr>
@@ -1028,6 +1057,23 @@
                                                     </span>
                                                     <span x-show="!config.translation_mode" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
                                                         <i class="fas fa-brain mr-1"></i> Deep (Default)
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 text-sm">
+                                                    <span x-show="config.chunking_algorithm === 'smart'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                        <i class="fas fa-puzzle-piece mr-1"></i> Smart
+                                                    </span>
+                                                    <span x-show="config.chunking_algorithm === 'line'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                                        <i class="fas fa-bars mr-1"></i> Line
+                                                    </span>
+                                                    <span x-show="config.chunking_algorithm === 'subtitle_srt'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                                        <i class="fas fa-closed-captioning mr-1"></i> SRT
+                                                    </span>
+                                                    <span x-show="config.chunking_algorithm === 'symbol'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                                                        <i class="fas fa-paragraph mr-1"></i> Symbol
+                                                    </span>
+                                                    <span x-show="!config.chunking_algorithm" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                                        <i class="fas fa-puzzle-piece mr-1"></i> Smart (Default)
                                                     </span>
                                                 </td>
                                                 <td class="px-4 py-3 text-sm">

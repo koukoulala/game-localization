@@ -30,6 +30,8 @@ async def init_db():
     need_llm_tables = False
     need_glossary_migration = False # Flag for glossary column
     need_translation_mode_migration = False # Flag for translation_mode column
+    need_chunking_algorithm_migration = False # Flag for chunking_algorithm column
+    need_original_file_type_migration = False # Flag for original_file_type column
 
     try:
         async with aiosqlite.connect(DB_PATH) as db:
@@ -46,6 +48,8 @@ async def init_db():
                     need_filename_migration = True
                 if not await _column_exists(db, 'jobs', 'glossary_json'):
                     need_glossary_migration = True
+                if not await _column_exists(db, 'jobs', 'original_file_type'): # Check for new column
+                    need_original_file_type_migration = True
             # else: No need for column migrations if table doesn't exist yet
 
             # Check if env_variables table exists
@@ -58,9 +62,11 @@ async def init_db():
             llm_config_exists = await cursor.fetchone()
             if not llm_config_exists:
                 need_llm_tables = True
-            elif llm_config_exists and not await _column_exists(db, 'llm_config', 'translation_mode'):
-                need_translation_mode_migration = True
-                
+            elif llm_config_exists:
+                if not await _column_exists(db, 'llm_config', 'translation_mode'):
+                    need_translation_mode_migration = True
+                if not await _column_exists(db, 'llm_config', 'chunking_algorithm'):
+                    need_chunking_algorithm_migration = True
     except Exception as e:
         print(f"Error checking for migrations: {e}")
     
@@ -86,7 +92,8 @@ async def init_db():
             completed_at TIMESTAMP,
             error_info TEXT,
             config_json TEXT,
-            filename TEXT,
+            filename TEXT, -- Store the full original filename here
+            original_file_type TEXT, -- Store the original file extension (e.g., '.srt')
             glossary_json TEXT -- Added column for job-specific glossary
         )
         """)
@@ -113,6 +120,7 @@ async def init_db():
             target_lang TEXT,
             target_language_accent TEXT,
             translation_mode TEXT DEFAULT 'deep_mode',
+            chunking_algorithm TEXT DEFAULT 'smart',
             is_default BOOLEAN DEFAULT 0,
             created_at TIMESTAMP,
             updated_at TIMESTAMP
@@ -212,7 +220,7 @@ async def init_db():
         await db.commit()
 
     # Run migrations if needed
-    if need_migration or need_filename_migration or need_glossary_migration or need_env_tables or need_llm_tables or need_translation_mode_migration: # Added translation_mode flag
+    if need_migration or need_filename_migration or need_glossary_migration or need_env_tables or need_llm_tables or need_translation_mode_migration or need_chunking_algorithm_migration or need_original_file_type_migration:
         print("Running database migrations...")
         try:
             async with aiosqlite.connect(DB_PATH) as db:
@@ -266,6 +274,7 @@ async def init_db():
                         target_language_accent TEXT,
                         api_url TEXT,
                         translation_mode TEXT DEFAULT 'deep_mode',
+                        chunking_algorithm TEXT DEFAULT 'smart',
                         is_default BOOLEAN DEFAULT 0,
                         created_at TIMESTAMP,
                         updated_at TIMESTAMP
@@ -276,6 +285,18 @@ async def init_db():
                 if need_translation_mode_migration:
                     print("Adding translation_mode column to llm_config table...")
                     await db.execute("ALTER TABLE llm_config ADD COLUMN translation_mode TEXT DEFAULT 'deep_mode'")
+                
+                # Add chunking_algorithm column to llm_config if needed
+                if need_chunking_algorithm_migration:
+                    print("Adding chunking_algorithm column to llm_config table...")
+                    await db.execute("ALTER TABLE llm_config ADD COLUMN chunking_algorithm TEXT DEFAULT 'smart'")
+
+                # Add original_file_type column to jobs table if needed
+                if need_original_file_type_migration:
+                    print("Adding original_file_type column to jobs table...")
+                    await db.execute("ALTER TABLE jobs ADD COLUMN original_file_type TEXT")
+                    # Optional: Backfill existing rows if possible (might be hard without original filename)
+                    # Example: await db.execute("UPDATE jobs SET original_file_type = '.txt' WHERE original_file_type IS NULL")
                 
                 await db.commit()
                 print("Migration completed successfully.")
@@ -291,27 +312,27 @@ async def create_job(job_data: Dict[str, Any]) -> str:
     
     config = job_data.get("config", {})
     
-    # Generate filename if provided in the original file
+    # Get original filename and extract type
     original_filename = job_data.get("original_filename", "")
-    source_lang = config.get("source_lang", "")
-    target_lang = config.get("target_lang", "")
-    
-    filename = ""
+    original_file_type = ""
     if original_filename:
-        # Remove file extension if present
-        base_name = os.path.splitext(original_filename)[0]
-        # Strip spaces and non-allowed characters
-        base_name = "".join(c for c in base_name if c.isalnum() or c in "-_.")
-        # Create filename with format: [original file name]_[source language]_[target language]
-        filename = f"{base_name}_{source_lang}_{target_lang}"
-    
+        original_file_type = os.path.splitext(original_filename)[1].lower() # Get extension like '.srt'
+        # Ensure it starts with a dot, default to .txt if extraction fails or is empty
+        if not original_file_type or not original_file_type.startswith('.'):
+             original_file_type = ".txt"
+    else:
+        original_file_type = ".txt" # Default if no original filename
+
+    # Store the full original filename (or empty string)
+    filename_to_store = original_filename
+
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
         INSERT INTO jobs (
             job_id, original_content, source_lang, target_lang,
             provider, model, target_language_accent, status, progress_percent,
-            current_step, created_at, updated_at, config_json, filename, glossary_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            current_step, created_at, updated_at, config_json, filename, original_file_type, glossary_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             job_id,
             job_data.get("original_content", ""),
@@ -326,7 +347,8 @@ async def create_job(job_data: Dict[str, Any]) -> str:
             now,
             now,
             json.dumps(config),
-            filename,
+            filename_to_store, # Store the full original filename
+            original_file_type, # Store the extracted file type (e.g., '.srt')
             json.dumps(job_data.get("contextualized_glossary")) # Serialize and store glossary
         ))
         await db.commit()
@@ -392,7 +414,7 @@ async def list_jobs(limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         SELECT job_id, source_lang, target_lang, provider, model,
                target_language_accent, status, progress_percent,
                created_at, started_at, updated_at, completed_at, error_info, current_step,
-               filename, config_json
+               filename, original_file_type, config_json
         FROM jobs
         ORDER BY created_at DESC
         LIMIT ? OFFSET ?
@@ -865,6 +887,7 @@ async def save_llm_config(config: Dict[str, Any], set_as_default: bool = False) 
     target_lang = config.get("target_lang", "")
     target_language_accent = config.get("target_language_accent", "")
     translation_mode = config.get("translation_mode", "deep_mode")
+    chunking_algorithm = config.get("chunking_algorithm", "smart")
     
     async with aiosqlite.connect(DB_PATH) as db:
         # If setting as default, clear existing default
@@ -875,11 +898,11 @@ async def save_llm_config(config: Dict[str, Any], set_as_default: bool = False) 
         cursor = await db.execute("""
         INSERT INTO llm_config (
             provider, model, source_lang, target_lang, target_language_accent,
-            translation_mode, is_default, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            translation_mode, chunking_algorithm, is_default, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             provider, model, source_lang, target_lang, target_language_accent,
-            translation_mode, 1 if set_as_default else 0, now, now
+            translation_mode, chunking_algorithm, 1 if set_as_default else 0, now, now
         ))
         
         config_id = cursor.lastrowid
@@ -898,6 +921,7 @@ async def update_llm_config(config_id: int, config: Dict[str, Any], set_as_defau
     target_lang = config.get("target_lang", "")
     target_language_accent = config.get("target_language_accent", "")
     translation_mode = config.get("translation_mode", "deep_mode")
+    chunking_algorithm = config.get("chunking_algorithm", "smart")
     
     async with aiosqlite.connect(DB_PATH) as db:
         # If setting as default, clear existing default
@@ -908,11 +932,11 @@ async def update_llm_config(config_id: int, config: Dict[str, Any], set_as_defau
         await db.execute("""
         UPDATE llm_config
         SET provider = ?, model = ?, source_lang = ?, target_lang = ?,
-            target_language_accent = ?, translation_mode = ?, is_default = ?, updated_at = ?
+            target_language_accent = ?, translation_mode = ?, chunking_algorithm = ?, is_default = ?, updated_at = ?
         WHERE id = ?
         """, (
             provider, model, source_lang, target_lang, target_language_accent,
-            translation_mode, 1 if set_as_default else 0, now, config_id
+            translation_mode, chunking_algorithm, 1 if set_as_default else 0, now, config_id
         ))
         
         await db.commit()
