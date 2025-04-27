@@ -1204,6 +1204,7 @@
                                 <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Languages</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Accent/Style</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Mode</th>
+                                <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Chunking Algorithm</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Status</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Created</th>
                                 <th class="px-4 py-3 text-left text-sm font-medium text-[var(--text-muted)]">Duration</th>
@@ -1226,6 +1227,23 @@
                                         </span>
                                         <span x-show="!job.config_json || !JSON.parse(job.config_json).translation_mode" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                                             <i class="fas fa-brain mr-1"></i> Deep
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-sm">
+                                        <span x-show="job.config_json && JSON.parse(job.config_json).chunking_algorithm === 'smart'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                            <i class="fas fa-puzzle-piece mr-1"></i> Smart
+                                        </span>
+                                        <span x-show="job.config_json && JSON.parse(job.config_json).chunking_algorithm === 'line'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                            <i class="fas fa-bars mr-1"></i> Line
+                                        </span>
+                                        <span x-show="job.config_json && JSON.parse(job.config_json).chunking_algorithm === 'subtitle_srt'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                            <i class="fas fa-closed-captioning mr-1"></i> SRT
+                                        </span>
+                                        <span x-show="job.config_json && JSON.parse(job.config_json).chunking_algorithm === 'symbol'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                                            <i class="fas fa-paragraph mr-1"></i> Symbol
+                                        </span>
+                                        <span x-show="!job.config_json || !JSON.parse(job.config_json).chunking_algorithm" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                            <i class="fas fa-puzzle-piece mr-1"></i> Smart
                                         </span>
                                     </td>
                                     <td class="px-4 py-3 text-sm">
@@ -1282,7 +1300,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 border border-[var(--border-color)] rounded-lg bg-[var(--bg-tertiary)]">
                     <div>
                         <p class="mb-2"><span class="font-medium"><i class="fas fa-fingerprint mr-1"></i> Job ID:</span> <span class="text-sm bg-[var(--bg-secondary)] px-2 py-0.5 rounded" x-text="selectedJob?.job_id"></span></p>
-                        <p class="mb-2"><span class="font-medium"><i class="fas fa-info-circle mr-1"></i> Status:</span> 
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-file mr-1"></i> Filename:</span> <span x-text="selectedJob?.filename || '-'"></span></p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-info-circle mr-1"></i> Status:</span>
                             <span x-show="selectedJob?.status === 'completed'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                                 <i class="fas fa-check mr-1"></i> Completed
                             </span>
@@ -1302,7 +1321,6 @@
                         <p class="mb-2"><span class="font-medium"><i class="fas fa-stopwatch mr-1"></i> Duration:</span> <span x-text="selectedJob?.completed_at && selectedJob?.started_at ? calculateDurationString(new Date(selectedJob.started_at), new Date(selectedJob.completed_at)) : '-'"></span></p>
                     </div>
                     <div>
-                        <p class="mb-2"><span class="font-medium"><i class="fas fa-file mr-1"></i> Filename:</span> <span x-text="selectedJob?.filename || '-'"></span></p>
                         <p class="mb-2"><span class="font-medium"><i class="fas fa-globe-americas mr-1"></i> Source Language:</span> <span x-text="selectedJob?.source_lang"></span></p>
                         <p class="mb-2"><span class="font-medium"><i class="fas fa-globe-europe mr-1"></i> Target Language:</span> <span x-text="selectedJob?.target_lang"></span></p>
                         <p class="mb-2"><span class="font-medium"><i class="fas fa-microphone-alt mr-1"></i> Accent/Style:</span> <span x-text="selectedJob?.target_language_accent || '-'"></span></p>
@@ -1317,6 +1335,23 @@
                             </span>
                             <span x-show="!selectedJob?.config?.translation_mode" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                                 <i class="fas fa-brain mr-1"></i> Deep (Default)
+                            </span>
+                        </p>
+                        <p class="mb-2"><span class="font-medium"><i class="fas fa-puzzle-piece mr-1"></i> Chunking Algorithm:</span>
+                            <span x-show="selectedJob?.config?.chunking_algorithm === 'smart'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-puzzle-piece mr-1"></i> Smart
+                            </span>
+                            <span x-show="selectedJob?.config?.chunking_algorithm === 'line'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                <i class="fas fa-bars mr-1"></i> Line
+                            </span>
+                            <span x-show="selectedJob?.config?.chunking_algorithm === 'subtitle_srt'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                <i class="fas fa-closed-captioning mr-1"></i> SRT
+                            </span>
+                            <span x-show="selectedJob?.config?.chunking_algorithm === 'symbol'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                                <i class="fas fa-paragraph mr-1"></i> Symbol
+                            </span>
+                            <span x-show="!selectedJob?.config?.chunking_algorithm" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                <i class="fas fa-puzzle-piece mr-1"></i> Smart (Default)
                             </span>
                         </p>
                     </div>
