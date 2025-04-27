@@ -24,7 +24,7 @@ class SmartChunker:
                 self.separators = separators
             else:
                 # Default separators for symbol mode
-                self.separators = [".", ",", " ", "\n", "\n\n"]
+                self.separators = ["."] # Default separator is just a dot
         else:
             # Default separators for other modes (not used but kept for consistency)
             self.separators = separators or [
@@ -668,12 +668,16 @@ class SmartChunker:
         # 4. Blank line
         
         import re
-        pattern = re.compile(r'(\d+)\s*\n(\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3}(?:[ \t]+X1:\d+ X2:\d+ Y1:\d+ Y2:\d+)?)\s*\n((?:.+(?:\n|$))+?)(?:\n\s*\n|$)', re.MULTILINE)
         
-        matches = list(pattern.finditer(text))
+        # Initialize valid_srt_entries counter
+        valid_srt_entries = 0
         
-        # If no matches found, treat the entire text as a single chunk
-        if not matches:
+        # First, split the text into subtitle entries by double newlines
+        entries = re.split(r'\n\s*\n', text)
+        entries = [entry.strip() for entry in entries if entry.strip()]
+        
+        # If no entries found, treat the entire text as a single chunk
+        if not entries:
             chunks.append({
                 'chunkText': text.strip(),
                 'toTranslate': True,
@@ -685,12 +689,30 @@ class SmartChunker:
             report['text_chunks'] = 1
             return chunks, report
         
-        for match in matches:
-            # Timing section (non-translatable)
-            line_num = match.group(1)
-            timestamp = match.group(2)
-            timing_text = f"{line_num}\n{timestamp}"
+        # Process each entry
+        for entry in entries:
+            lines = entry.split('\n')
             
+            # First line should be the subtitle number
+            if not lines:
+                continue
+                
+            line_num = lines[0].strip()
+            
+            # Second line should be the timestamp
+            if len(lines) < 2:
+                continue
+                
+            timestamp = lines[1].strip()
+            
+            # Check if it's a valid timestamp format
+            if not re.match(r'\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3}', timestamp):
+                continue
+                
+            valid_srt_entries += 1
+            
+            # Create timing chunk (non-translatable)
+            timing_text = f"{line_num}\n{timestamp}"
             timing_chunk = {
                 'chunkText': timing_text,
                 'toTranslate': False,
@@ -702,18 +724,31 @@ class SmartChunker:
             report['non_translatable_chunks'] += 1
             report['timing_chunks'] = report.get('timing_chunks', 0) + 1
             
-            # Content section (translatable)
-            content = match.group(3).strip()
-            if content:
-                content_chunk = {
-                    'chunkText': content,
-                    'toTranslate': True,
-                    'chunkType': 'text',
-                    'index': len(chunks)
-                }
-                chunks.append(content_chunk)
-                report['total_chunks'] += 1
-                report['translatable_chunks'] += 1
-                report['text_chunks'] += 1
+            # If there are more lines, they are the content
+            if len(lines) > 2:
+                content = '\n'.join(lines[2:]).strip()
+                if content:
+                    content_chunk = {
+                        'chunkText': content,
+                        'toTranslate': True,
+                        'chunkType': 'text',
+                        'index': len(chunks)
+                    }
+                    chunks.append(content_chunk)
+                    report['total_chunks'] += 1
+                    report['translatable_chunks'] += 1
+                    report['text_chunks'] += 1
+        
+        # If no valid SRT entries were found, treat the entire text as a single chunk
+        if valid_srt_entries == 0:
+            chunks = [{
+                'chunkText': text.strip(),
+                'toTranslate': True,
+                'chunkType': 'text',
+                'index': 0
+            }]
+            report['total_chunks'] = 1
+            report['translatable_chunks'] = 1
+            report['text_chunks'] = 1
         
         return chunks, report

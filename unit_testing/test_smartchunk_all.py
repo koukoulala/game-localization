@@ -1013,7 +1013,7 @@ def test_mode_validation():
         
     # Test default separator for symbol mode
     chunker = SmartChunker(mode="symbol")
-    assert chunker.separators == [".", ",", " ", "\n", "\n\n"] # Default separators
+    assert chunker.separators == ["."] # Default separator is just a dot
 
 # --- Line Mode Tests ---
 
@@ -1089,6 +1089,16 @@ def test_line_mode_with_unicode():
     assert chunks[0]['chunkText'] == "Line with Unicode: üñîçødé"
     assert chunks[1]['chunkText'] == "Another line with emoji: 😊"
 
+def test_line_mode_single_line():
+    """Test line mode with a single line of input."""
+    chunker = SmartChunker(mode="line")
+    text = "This is just one line."
+    chunks, report = chunker.chunk(text)
+    
+    assert report['total_chunks'] == 1
+    assert len(chunks) == 1
+    assert chunks[0]['chunkText'] == "This is just one line."
+    assert chunks[0]['toTranslate'] is True
 # --- Symbol Mode Tests ---
 
 def test_symbol_mode_basic():
@@ -1097,14 +1107,10 @@ def test_symbol_mode_basic():
     text = "Hello world. This is a test."
     chunks, report = chunker.chunk(text)
     
-    # With default separators, this should split by spaces, periods, and commas
-    assert report['total_chunks'] > 2  # Should split into more than 2 chunks
-    assert "Hello" in [chunk['chunkText'] for chunk in chunks]
-    assert "world" in [chunk['chunkText'] for chunk in chunks]
-    assert "This" in [chunk['chunkText'] for chunk in chunks]
-    assert "is" in [chunk['chunkText'] for chunk in chunks]
-    assert "a" in [chunk['chunkText'] for chunk in chunks]
-    assert "test" in [chunk['chunkText'] for chunk in chunks]
+    # With default separator '.', this should split into 2 chunks
+    assert report['total_chunks'] == 2
+    assert chunks[0]['chunkText'] == "Hello world"
+    assert chunks[1]['chunkText'] == "This is a test"
     assert all(chunk['toTranslate'] for chunk in chunks)
 
 def test_symbol_mode_custom_separators():
@@ -1204,6 +1210,28 @@ def test_symbol_mode_separator_order():
 
 # --- Subtitle SRT Mode Tests ---
 
+def test_symbol_mode_default_separator():
+    """Test symbol mode with default separator ('.') when separators=None."""
+    chunker = SmartChunker(mode="symbol", separators=None) # Explicitly None
+    text = "Sentence one. Sentence two."
+    chunks, report = chunker.chunk(text)
+    
+    assert chunker.separators == ["."] # Verify default is correct
+    assert report['total_chunks'] == 2
+    assert chunks[0]['chunkText'] == "Sentence one"
+    assert chunks[1]['chunkText'] == "Sentence two"
+
+def test_symbol_mode_separators_at_edges():
+    """Test symbol mode with separators at the beginning and end."""
+    chunker = SmartChunker(mode="symbol", separators=["|"])
+    text = "|Start|Middle|End|"
+    chunks, report = chunker.chunk(text)
+    
+    # Separators at edges should result in empty strings which are filtered out
+    assert report['total_chunks'] == 3
+    assert chunks[0]['chunkText'] == "Start"
+    assert chunks[1]['chunkText'] == "Middle"
+    assert chunks[2]['chunkText'] == "End"
 def test_subtitle_srt_mode_basic():
     """Test basic subtitle SRT mode chunking."""
     chunker = SmartChunker(mode="subtitle_srt")
@@ -1340,6 +1368,41 @@ and <font size="12">sized text</font>."""
     assert "{b}Bold text{/b}" in chunks[3]['chunkText']
     assert '<font color="red">Colored text</font>' in chunks[5]['chunkText']
 
+def test_subtitle_srt_mode_no_content():
+    """Test subtitle SRT mode with an entry that has timing but no content."""
+    chunker = SmartChunker(mode="subtitle_srt")
+    # Note: The indentation in this string is intentional and part of the test
+    text = """1
+00:00:01,000 --> 00:00:05,000
+
+2
+00:00:06,000 --> 00:00:10,000
+This one has content.
+"""
+    chunks, report = chunker.chunk(text)
+    
+    # Should produce 3 chunks: timing1, timing2, content2
+    assert report['total_chunks'] == 3
+    assert report['translatable_chunks'] == 1
+    assert report['non_translatable_chunks'] == 2
+
+    # Check timing chunk 1 (Entry 1)
+    assert chunks[0]['chunkType'] == 'timing'
+    assert chunks[0]['toTranslate'] is False
+    assert "1" in chunks[0]['chunkText']
+    assert "00:00:01,000 --> 00:00:05,000" in chunks[0]['chunkText']
+    
+    # Check timing chunk 2 (Entry 2)
+    assert chunks[1]['chunkType'] == 'timing'
+    assert chunks[1]['toTranslate'] is False
+    assert "2" in chunks[1]['chunkText']
+    assert "00:00:06,000 --> 00:00:10,000" in chunks[1]['chunkText']
+
+    # Check content chunk 2 (Entry 2)
+    assert chunks[2]['chunkType'] == 'text'
+    assert chunks[2]['toTranslate'] is True
+    assert "This one has content." in chunks[2]['chunkText']
+
 # --- Integration Tests ---
 
 def test_mode_switching():
@@ -1374,8 +1437,8 @@ Hello, world. This is a test."""
     # Line mode should have one chunk per non-empty line
     assert len(line_chunks) == 5  # 5 non-empty lines
     
-    # Symbol mode with default separators should split by spaces, periods, etc.
-    assert len(symbol_chunks) > 5
+    # Symbol mode with default separator '.' should split into 3 chunks
+    assert len(symbol_chunks) == 3
     
     # SRT mode should identify timing and content sections
     assert any(chunk['chunkType'] == 'timing' for chunk in srt_chunks)
