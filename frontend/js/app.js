@@ -45,6 +45,17 @@ document.addEventListener('alpine:init', () => {
         selectedJob: null,
         viewMode: 'home', // 'home', 'form', 'history', 'job-details', 'llm-config', 'env-config', 'glossary'
         
+        // Statistics for home page
+        jobStats: {
+            totalJobs: 0,
+            totalWords: 0,
+            totalChars: 0,
+            deepTranslationPercent: 0,
+            topModels: [],
+            topAccents: [],
+            topLanguages: []
+        },
+        
         // LLM Configuration
         llmConfigs: [],
         defaultLLMConfig: null,
@@ -138,7 +149,9 @@ document.addEventListener('alpine:init', () => {
             });
             
             // These can be fetched in parallel
-            this.fetchJobHistory();
+            this.fetchJobHistory().then(() => {
+                this.calculateJobStats(); // Calculate statistics after fetching job history
+            });
             this.fetchEnvVariables();
             this.loadUserGlossaries(); // Fetch glossaries on init
 
@@ -171,6 +184,10 @@ document.addEventListener('alpine:init', () => {
                 } else if (newMode === 'glossary') {
                     this.loadUserGlossaries(); // Refresh when switching to glossary tab
                     this.resetCurrentGlossary(); // Clear edit form
+                } else if (newMode === 'home') {
+                    this.fetchJobHistory().then(() => {
+                        this.calculateJobStats();
+                    });
                 }
             });
 
@@ -518,8 +535,50 @@ connectToJobStream(jobId) {
                 const data = await response.json();
                 this.jobHistory = data.jobs || [];
                 console.log('Job history fetched:', this.jobHistory);
+                return this.jobHistory;
             } catch (error) {
                 console.error("Error fetching job history:", error);
+                return [];
+            }
+        },
+        
+        async calculateJobStats() {
+            // Reset stats
+            this.jobStats = {
+                totalJobs: 0,
+                totalWords: 0,
+                totalChars: 0,
+                deepTranslationPercent: 0,
+                topModels: [],
+                topAccents: [],
+                topLanguages: []
+            };
+            
+            try {
+                // Fetch statistics from the backend API
+                const response = await fetch(`${this.apiUrl.replace(/\/$/, '')}/jobs/statistics`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const stats = await response.json();
+                console.log('Job statistics fetched from API:', stats);
+                
+                // Map the backend stats to our frontend format
+                this.jobStats = {
+                    totalJobs: stats.total_jobs || 0,
+                    totalWords: stats.total_words || 0,
+                    totalChars: stats.total_chars || 0,
+                    deepTranslationPercent: stats.deep_translation_percent || 50,
+                    topModels: stats.top_models || [],
+                    topAccents: stats.top_accents || [],
+                    topLanguages: stats.top_languages || []
+                };
+                
+            } catch (error) {
+                console.error("Error fetching job statistics:", error);
+                // Keep default values in case of error
             }
         },
         

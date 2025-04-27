@@ -392,7 +392,7 @@ async def list_jobs(limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         SELECT job_id, source_lang, target_lang, provider, model,
                target_language_accent, status, progress_percent,
                created_at, started_at, updated_at, completed_at, error_info, current_step,
-               filename
+               filename, config_json
         FROM jobs
         ORDER BY created_at DESC
         LIMIT ? OFFSET ?
@@ -1068,3 +1068,132 @@ async def get_default_glossary() -> Optional[Dict[str, Any]]:
                  data['glossary_data'] = None # Indicate parsing error
             return data
         return None
+# Job Statistics
+async def get_job_statistics() -> Dict[str, Any]:
+    """Get statistics about all jobs in the database."""
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            stats = {
+                "total_jobs": 0,
+                "total_words": 0,
+                "total_chars": 0,
+                "deep_translation_count": 0,
+                "quick_translation_count": 0,
+                "top_models": [],
+                "top_accents": [],
+                "top_languages": []
+            }
+            
+            # Check if jobs table exists
+            cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='jobs'")
+            if not await cursor.fetchone():
+                return stats  # Return empty stats if table doesn't exist
+            
+            # Total jobs
+            cursor = await db.execute("SELECT COUNT(*) as count FROM jobs")
+            row = await cursor.fetchone()
+            stats["total_jobs"] = row["count"] if row else 0
+            
+            if stats["total_jobs"] == 0:
+                return stats  # Return early if no jobs
+            
+            # Count words and characters (using a sample of jobs for performance)
+            # This is an approximation - for exact counts we'd need to process all content
+            cursor = await db.execute("""
+                SELECT SUM(LENGTH(original_content)) as total_chars,
+                       COUNT(*) as sample_size
+                FROM jobs
+                WHERE original_content IS NOT NULL
+                LIMIT 100
+            """)
+            row = await cursor.fetchone()
+            
+            if row and row["sample_size"] > 0:
+                # Calculate average chars per job
+                avg_chars_per_job = row["total_chars"] / row["sample_size"]
+                # Estimate total chars based on all jobs
+                stats["total_chars"] = int(avg_chars_per_job * stats["total_jobs"])
+                # Estimate words (rough approximation: average 5 chars per word)
+                stats["total_words"] = int(stats["total_chars"] / 5)
+            
+            # Translation modes
+            cursor = await db.execute("""
+                SELECT 
+                    json_extract(config_json, '$.translation_mode') as mode,
+                    COUNT(*) as count
+                FROM jobs
+                WHERE config_json IS NOT NULL
+                GROUP BY json_extract(config_json, '$.translation_mode')
+            """)
+            
+            mode_rows = await cursor.fetchall()
+            for row in mode_rows:
+                mode = row["mode"]
+                if mode == "deep_mode" or mode == '"deep_mode"':
+                    stats["deep_translation_count"] += row["count"]
+                elif mode == "quick_mode" or mode == '"quick_mode"':
+                    stats["quick_translation_count"] += row["count"]
+            
+            # Top models
+            cursor = await db.execute("""
+                SELECT model, COUNT(*) as count
+                FROM jobs
+                WHERE model IS NOT NULL AND model != ''
+                GROUP BY model
+                ORDER BY count DESC
+                LIMIT 3
+            """)
+            
+            stats["top_models"] = [{"name": row["model"], "count": row["count"]} 
+                                  for row in await cursor.fetchall()]
+            
+            # Top accents/styles
+            cursor = await db.execute("""
+                SELECT target_language_accent, COUNT(*) as count
+                FROM jobs
+                WHERE target_language_accent IS NOT NULL AND target_language_accent != ''
+                GROUP BY target_language_accent
+                ORDER BY count DESC
+                LIMIT 3
+            """)
+            
+            stats["top_accents"] = [{"name": row["target_language_accent"], "count": row["count"]} 
+                                   for row in await cursor.fetchall()]
+            
+            # Top language pairs
+            cursor = await db.execute("""
+                SELECT source_lang, target_lang, COUNT(*) as count
+                FROM jobs
+                WHERE source_lang IS NOT NULL AND source_lang != ''
+                  AND target_lang IS NOT NULL AND target_lang != ''
+                GROUP BY source_lang, target_lang
+                ORDER BY count DESC
+                LIMIT 3
+            """)
+            
+            stats["top_languages"] = [{"name": f"{row['source_lang']} → {row['target_lang']}", "count": row["count"]}
+                                     for row in await cursor.fetchall()]
+            
+            # Calculate deep translation percentage
+            total_modes = stats["deep_translation_count"] + stats["quick_translation_count"]
+            if total_modes > 0:
+                stats["deep_translation_percent"] = round((stats["deep_translation_count"] / total_modes) * 100)
+            else:
+                stats["deep_translation_percent"] = 50  # Default to 50% if no data
+            
+            return stats
+            
+    except Exception as e:
+        print(f"Error getting job statistics: {e}")
+        # Return empty stats on error
+        return {
+            "total_jobs": 0,
+            "total_words": 0,
+            "total_chars": 0,
+            "deep_translation_count": 0,
+            "quick_translation_count": 0,
+            "top_models": [],
+            "top_accents": [],
+            "top_languages": []
+        }

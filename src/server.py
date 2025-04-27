@@ -310,6 +310,32 @@ async def list_jobs(limit: int = 100, offset: int = 0):
     jobs = await job_queue.list_jobs(limit, offset)
     return {"jobs": jobs}
 
+@app.get("/jobs/statistics", tags=["Jobs"])
+async def get_job_statistics():
+    """Get statistics about all jobs."""
+    from .database import get_job_statistics as db_get_job_statistics
+    
+    try:
+        stats = await db_get_job_statistics()
+        
+        # Calculate deep translation percentage
+        total_modes = stats["deep_translation_count"] + stats["quick_translation_count"]
+        deep_percent = 50  # Default to 50% if no data
+        
+        if total_modes > 0:
+            deep_percent = round((stats["deep_translation_count"] / total_modes) * 100)
+            
+        # Add the percentage to the stats
+        stats["deep_translation_percent"] = deep_percent
+        
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting job statistics: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to get job statistics: {str(e)}"}
+        )
+
 @app.get("/jobs/{job_id}", tags=["Jobs"])
 async def get_job(job_id: str):
     """Get details for a specific job."""
