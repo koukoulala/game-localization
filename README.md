@@ -6,6 +6,8 @@ Welcome to **Turjuman** (ترجمان - *Interpreter/Translator* in Arabic)! �
 
 Ever felt daunted by translating a massive book (like 500 pages and over 150,000 words!)? Turjuman is here to help! (currently Markdown `.md` and plain text `.txt` files) using LLMs to magaically translate large documents while trying smartly keep the original meaning and style intact.
 
+![Theme](docs/ui_home.png)
+
 ---
 
 ## ✨ How Turjuman Works
@@ -28,7 +30,6 @@ Turjuman uses a smart pipeline powered by LangGraph 🦜🔗 with two translatio
 6. **✨ final_translation**: Refine translations (Deep Mode only)
 7. **📜 assemble_document**: Stitch everything back together
 
-![Theme](docs/ui_home.png)
 
 ### 📊 Translation Flow
 
