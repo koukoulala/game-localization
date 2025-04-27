@@ -62,6 +62,7 @@ class TranslationWorker:
                         input_state = {
                             "job_id": job['job_id'],
                             "original_content": job['original_content'],
+                            "original_file_type": job.get('original_file_type', '.txt'), # Add file type, default to .txt
                             "config": config,
                             "contextualized_glossary": glossary, # Add the loaded glossary
                             "current_step": None,

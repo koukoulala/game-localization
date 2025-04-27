@@ -191,6 +191,11 @@ def init_translation(state: TranslationState) -> TranslationState:
 def chunk_document(state: TranslationState) -> TranslationState:
     NODE_NAME = "chunk_document"
     update_progress(state, NODE_NAME, 10.0)
+
+    # Log the original file type
+    original_file_type = state.get('original_file_type', 'unknown')
+    log_to_state(state, f"Original file type: {original_file_type}", "INFO", node=NODE_NAME)
+
     # Initialize state fields
     state["chunks"] = [] # Reset/initialize
     state["translated_chunks"] = [] # Also reset translated chunks array

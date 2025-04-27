@@ -1,3 +1,4 @@
+import re
 import concurrent.futures
 import time
 import json # Needed for apply_review_feedback
@@ -303,12 +304,14 @@ def assemble_document(state: TranslationState) -> TranslationState:
     sorted_chunks = sorted(all_chunks, key=lambda x: x["index"])
     
     # Determine the separator based on the original file type
-    original_file_type = state.get("original_file_type", ".txt").lower() # Default to .txt
+    original_file_type = state.get("original_file_type")
+    log_to_state(state, f"File type is:----> {original_file_type}", "INFO", node=NODE_NAME)
     
+
     if original_file_type == ".srt":
-        # SRT chunks should contain necessary newlines, including the blank line between entries
-        separator = ""
-        log_to_state(state, "Using empty separator for SRT file assembly.", "INFO", node=NODE_NAME)
+        # SRT files need special handling
+        separator = "\n"
+        log_to_state(state, "Using newline separator for SRT file assembly.", "INFO", node=NODE_NAME)
     elif original_file_type == ".md":
         separator = "\n\n"
         log_to_state(state, "Using paragraph separator ('\\n\\n') for Markdown file assembly.", "INFO", node=NODE_NAME)
@@ -317,6 +320,11 @@ def assemble_document(state: TranslationState) -> TranslationState:
         log_to_state(state, f"Using newline separator ('\\n') for {original_file_type} file assembly.", "INFO", node=NODE_NAME)
         
     final_document = separator.join([chunk["content"] for chunk in sorted_chunks])
+    
+    # Post-processing for specific file types
+    if original_file_type == ".srt":
+        final_document = clean_srt_file(final_document)
+        log_to_state(state, "Applied SRT-specific post-processing.", "INFO", node=NODE_NAME)
 
     state["final_document"] = final_document
     log_to_state(state, f"Final document assembled successfully ({len(final_document)} characters).", "INFO", node=NODE_NAME)
@@ -339,3 +347,18 @@ def assemble_document(state: TranslationState) -> TranslationState:
     update_progress(state, NODE_NAME, 100.0)
     state["current_step"] = "Completed"
     return state
+
+def clean_srt_file(srt_content: str) -> str:
+    """
+    Clean up SRT file content after translation to fix common issues.
+    
+    Args:
+        srt_content: The SRT file content to clean
+        
+    Returns:
+        Cleaned SRT file content
+    """
+
+    cleaned_content = re.sub(r'^\s*```.*?\s*$\n?', '', srt_content, flags=re.MULTILINE)
+
+    return cleaned_content

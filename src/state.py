@@ -25,6 +25,7 @@ class TerminologyEntry(TypedDict):
 class TranslationState(TypedDict):
     job_id: str
     original_content: str
+    original_file_type: Optional[str] # e.g., '.srt', '.txt'
     config: Dict[str, Any] # source_lang, target_lang, model_info, api_key_source etc.
     current_step: Optional[str] # Name of the current node/phase
     progress_percent: Optional[float] # Estimated progress (0.0 to 100.0)
