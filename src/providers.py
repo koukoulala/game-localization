@@ -36,7 +36,8 @@ API_KEY_ENV_VARS = {
 PROVIDER_DEFAULTS = {
     "openai": {"model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"},
     "anthropic": {"model": "claude-3-haiku-20240307", "base_url": "https://api.anthropic.com"},
-    "gemini": {"model": "gemini-2.5-pro-preview-03-25", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"}, # Base URL not applicable
+    "gemini": {"model": "gemini-2.5-flash", "base_url": "https://generativelanguage.googleapis.com/v1beta/"},
+    #"gemini": {"model": "gemini-2.5-pro-preview-03-25", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"}, # Base URL not applicable
     "openrouter": {"model": "google/gemini-2.5-pro-preview-03-25", "base_url": "https://openrouter.ai/api/v1"},
     "mistral": {"model": "mistral-large-2402", "base_url": "https://api.mistral.ai/v1"}, # Uses internal default endpoint
     "deepseek": {"model": "deepseek-chat", "base_url": "https://api.deepseek.com/v1"},

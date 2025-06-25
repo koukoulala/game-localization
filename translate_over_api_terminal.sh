@@ -7,7 +7,7 @@ set -euo pipefail
 
 # --- Default Configuration ---
 DEFAULT_SOURCE_LANG="english"
-DEFAULT_TARGET_LANG="arabic"
+DEFAULT_TARGET_LANG="simplified_chinese"
 DEFAULT_PROVIDER="openai" # Default provider
 DEFAULT_API_URL="http://localhost:8051" # Default API server URL
 DEFAULT_TARGET_ACCENT="professional" # Default accent
@@ -16,8 +16,8 @@ DEFAULT_TARGET_ACCENT="professional" # Default accent
 declare -A DEFAULT_MODELS=(
   ["openai"]="gpt-4o-mini"
   ["anthropic"]="claude-3-haiku-20240307"
-  ["gemini"]="gemini-2.5-pro-preview-03-25"
-  ["openrouter"]="google/gemini-2.5-pro-preview-03-25"
+  ["gemini"]="gemini-2.5-flash"
+  ["openrouter"]="google/gemini-2.5-flash"
   ["mistral"]="mistral-large-2402"
   ["deepseek"]="deepseek-chat"
   ["ollama"]="llama3"
@@ -38,10 +38,10 @@ function show_usage {
 
   echo -e "${CYAN}${BOLD}Usage:${RESET} $(basename "$0") -i <input_file> [OPTIONS]"
   echo -e ""
-  echo -e "${YELLOW}Sends a markdown file to the Turjuman translation server for processing.${RESET}"
+  echo -e "${YELLOW}Sends a in-game file to the translation server for processing.${RESET}"
   echo -e ""
   echo -e "${CYAN}${BOLD}Required:${RESET}"
-  echo -e "  -i, --input FILE       Path to the input markdown file to translate"
+  echo -e "  -i, --input FILE       Path to the input file to translate"
   echo -e ""
   echo -e "${CYAN}${BOLD}Optional:${RESET}"
   echo -e "  -o, --output FILE      Path to save the JSON response (default: ./<input_name_no_ext>_\${JOB_ID}.json)"

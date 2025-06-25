@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Turjuman - LLM Powered Books & Long Text Translator</title>
+    <title>LLM Powered In-game Text Translator</title>
     <!-- Favicon using Font Awesome icon as fallback -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>">
     <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
@@ -234,7 +234,7 @@
         <!-- Application Header -->
         <div class="mb-6">
             <h1 class="text-3xl font-bold text-center mb-6">
-                <i class="fas fa-language mr-2"></i> Turjuman - LLM Powered Books & Long Text Translator
+                <i class="fas fa-language mr-2"></i> LLM Powered In-game Text Translator
             </h1>
             
             <!-- Main Navigation Tabs -->
@@ -446,7 +446,7 @@
                             <i class="fas fa-book"></i>
                         </div>
                         <h3 class="font-semibold mb-2">Translate Books</h3>
-                        <p class="text-[var(--text-muted)]">Upload file or paste text to translate, You can upload an entire book (e.g: 200,000 word book), Turjuman will translate it while maintaining structure and formatting. currently (.md) and (.txt) supportted </p>
+                        <p class="text-[var(--text-muted)]">Upload file or paste text to translate, You can upload an entire game text (e.g: 200,000 word book), we will translate it while maintaining structure and formatting. currently (.md) and (.txt) supportted </p>
                     </div>
                     
                     <div class="p-6 bg-[var(--bg-tertiary)] rounded-lg">
@@ -982,7 +982,7 @@
                                         <option value="subtitle_srt">Subtitle (.srt)</option>
                                         <option value="symbol">Symbol separated paragraph</option>
                                     </select>
-                                    <p class="mt-1 text-xs text-[var(--text-muted)]">Choose how Turjuman will chunk and translate your document.</p>
+                                    <p class="mt-1 text-xs text-[var(--text-muted)]">Choose how to chunk and translate your document.</p>
                                     
                                     <!-- Symbol Separators Input (conditionally shown) -->
                                     <div x-show="newLLMConfig.chunking_algorithm === 'symbol'" class="mt-2 p-2 border border-[var(--border-color)] rounded-md bg-[var(--bg-tertiary)]">
@@ -1495,11 +1495,8 @@
         
         <!-- Footer -->
         <div class="footer">
-            <p>Turjuman - LLM Powered Books & Long Text Translator</p>
+            <p>LLM Powered In-game Text Translator</p>
             <p class="mt-1">
-                <a href="https://github.com/abdallah-ali-abdallah/turjuman-book-translator" target="_blank">
-                    <i class="fab fa-github mr-1"></i> GitHub Repository
-                </a>
             </p>
         </div>
     </div>

@@ -149,7 +149,7 @@ async def serve_frontend_app():
     else:
         logger.error(f"index.html not found at {index_path}")
         # Fallback if index.html isn't found
-        return HTMLResponse(content="<html><body><h1>Turjuman Frontend</h1><p>Error: index.html not found.</p></body></html>", status_code=404)
+        return HTMLResponse(content="<html><body><h1>Frontend</h1><p>Error: index.html not found.</p></body></html>", status_code=404)
 
 # --- Add Langserve Routes ---
 # This exposes the standard LangGraph endpoints under the specified path prefix.
